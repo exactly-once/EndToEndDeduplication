@@ -10,38 +10,6 @@ using NServiceBus.Extensibility;
 
 namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
 {
-    class InterruptedTransactionHandler
-    {
-        Container applicationStateContainer;
-        SideEffectsHandlerCollection sideEffectsHandlers;
-        IOutboxStore outboxStore;
-
-        public async Task FinishTransaction(OutboxState outboxState)
-        {
-            var transaction = new TransactionRecordContainer(applicationStateContainer, outboxState.PartitionId);
-            if (!transaction.Prepared)
-            {
-                await PrepareSideEffects(outboxState.Records, transaction).ConfigureAwait(false);
-            }
-            await CommitSideEffects(outboxState.Records).ConfigureAwait(false);
-            await outboxStore.Remove(transaction.AttemptId).ConfigureAwait(false);
-
-            await transaction.ClearTransactionState().ConfigureAwait(false);
-        }
-
-        async Task CommitSideEffects(IEnumerable<OutboxRecord> previousOutboxState)
-        {
-            await sideEffectsHandlers.Commit(previousOutboxState).ConfigureAwait(false);
-        }
-
-        async Task PrepareSideEffects(IEnumerable<OutboxRecord> outboxState, TransactionRecordContainer transactionRecordContainer)
-        {
-            //Stores messages in the message store
-            await sideEffectsHandlers.Prepare(outboxState).ConfigureAwait(false);
-            await transactionRecordContainer.MarkMessagesChecked().ConfigureAwait(false);
-        }
-    }
-
     class ConnectorMessageSession : IConnectorMessageSession
     {
         string requestId;
@@ -49,22 +17,18 @@ namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
         readonly HttpResponse response;
         List<Func<IMessageSession, PendingTransportOperations, Task>> messageAction = new List<Func<IMessageSession, PendingTransportOperations, Task>>();
         IMessageSession messageSession;
-        IOutboxStore outboxStore;
         IConnectorDeduplicationStore deduplicationStore;
-        List<OutboxRecord> outboxRecords = new List<OutboxRecord>();
         SideEffectsHandlerCollection sideEffectsHandlers;
         TransactionRecordContainer transaction;
 
-        public ConnectorMessageSession(string requestId, string partitionKey, HttpResponse response, Container applicationStateContainer, IMessageSession messageSession, IConnectorDeduplicationStore deduplicationStore, SideEffectsHandlerCollection sideEffectsHandlers, IOutboxStore outboxStore)
+        public ConnectorMessageSession(string requestId, string partitionKey, HttpResponse response, Container applicationStateContainer, IMessageSession messageSession, SideEffectsHandlerCollection sideEffectsHandlers)
         {
             this.requestId = requestId;
             this.partitionKey = partitionKey;
             this.response = response;
             this.Container = applicationStateContainer;
             this.messageSession = messageSession;
-            this.deduplicationStore = deduplicationStore;
             this.sideEffectsHandlers = sideEffectsHandlers;
-            this.outboxStore = outboxStore;
             TransactionBatch = applicationStateContainer.CreateTransactionalBatch(new PartitionKey(partitionKey));
         }
 
@@ -103,10 +67,12 @@ namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
                 await messageOperation(messageSession, pendingOperations).ConfigureAwait(false);
             }
 
-            foreach (var pendingOperation in pendingOperations.Operations)
-            {
-                outboxRecords.Add(pendingOperation.ToOutboxRecord());
-            }
+            var messageRecords = pendingOperations.Operations.Select(o => o.ToMessageRecord(requestId, transaction.AttemptId)).Cast<SideEffectRecord>().ToList();
+            var messagesToCheck = pendingOperations.Operations.Select(o => o.ToCheck(transaction.AttemptId)).ToArray();
+
+            await transaction.AddSideEffects(messageRecords).ConfigureAwait(false);
+            await messageStore.Create(messagesToCheck).ConfigureAwait(false);
+
 
             var responseRecord = response.ToOutboxRecord(requestId);
             outboxRecords.Add(responseRecord);

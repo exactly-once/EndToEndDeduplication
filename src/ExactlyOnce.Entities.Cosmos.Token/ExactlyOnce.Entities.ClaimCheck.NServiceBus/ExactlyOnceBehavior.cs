@@ -1,9 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using ExactlyOnce.ClaimCheck;
-using Microsoft.Azure.Cosmos;
-using NServiceBus;
+using NServiceBus.Extensibility;
 using NServiceBus.Pipeline;
 
 namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
@@ -11,117 +9,42 @@ namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
     class ExactlyOnceBehavior : Behavior<IIncomingLogicalMessageContext>
     {
         readonly CorrelationManager correlation;
-        readonly Container applicationStateContainer;
-        readonly SideEffectsHandlerCollection sideEffectsHandlers;
-        readonly IOutboxStore outboxStore;
+        readonly ExactlyOnceProcessor<IExtendable> exactlyOnceProcessor;
         readonly IMessageStore messageStore;
 
-        public ExactlyOnceBehavior(Container applicationStateContainer, IOutboxStore outboxStore, IMessageStore messageStore, SideEffectsHandlerCollection sideEffectsHandlers, CorrelationManager correlation)
+        public ExactlyOnceBehavior(CorrelationManager correlation, ExactlyOnceProcessor<IExtendable> exactlyOnceProcessor, IMessageStore messageStore)
         {
-            this.applicationStateContainer = applicationStateContainer;
-            this.outboxStore = outboxStore;
-            this.messageStore = messageStore;
-            this.sideEffectsHandlers = sideEffectsHandlers;
             this.correlation = correlation;
+            this.exactlyOnceProcessor = exactlyOnceProcessor;
+            this.messageStore = messageStore;
         }
 
-        public override async Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
+        public override Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
         {
+            var currentMessageId = context.MessageId;
+
             if (!correlation.TryGetPartitionKey(context.Message.MessageType, context.Headers, context.Message.Instance,
                 out var partitionKey))
             {
                 //This message has not been mapped but correlation manager allows it to be processed.
-                await next().ConfigureAwait(false);
-                return;
+                return next();
             }
-
-            var transaction = new TransactionRecordContainer(applicationStateContainer, partitionKey);
-            await transaction.Load().ConfigureAwait(false);
-
-            var previousTransactionId = transaction.MessageId;
-            if (previousTransactionId != null)
+            return exactlyOnceProcessor.Process(currentMessageId, partitionKey, context, async (ctx, batchContext, transactionContext) =>
             {
-                await FinishProcessingPreviousMessage(transaction, context).ConfigureAwait(false);
-
-                if (previousTransactionId == context.MessageId)
+                //Check the de-duplication store if we already processed that message. Has to be done after loading the transaction.
+                var messageExists = await messageStore.CheckExists(currentMessageId).ConfigureAwait(false);
+                if (!messageExists)
                 {
                     //Duplicate
                     return;
                 }
-            }
 
-            //Check the de-duplication store if we already processed that message. Has to be done after loading the transaction.
-            var messageExists = await messageStore.CheckExists(context.MessageId).ConfigureAwait(false);
-            if (!messageExists)
-            {
-                //Duplicate
-                return;
-            }
-
-            var outboxRecordList = new List<OutboxRecord>();
-            context.Extensions.Set(outboxRecordList);
-            var pendingOperations = new PendingTransportOperations();
-            context.Extensions.Set(pendingOperations);
-
-            var batch = applicationStateContainer.CreateTransactionalBatch(new PartitionKey(partitionKey));
-            var batchContext = new TransactionBatchContext(batch, applicationStateContainer, new PartitionKey(partitionKey));
-            context.Extensions.Set<ITransactionBatchContext>(batchContext);
-
-            await next().ConfigureAwait(false);
-
-            //After all side effects are recorded, we append messages to ensure messages are pushed last.
-            foreach (var transportOperation in pendingOperations.Operations)
-            {
-                outboxRecordList.Add(transportOperation.ToOutboxRecord());
-            }
-
-            var attemptId = Guid.NewGuid();
-            await outboxStore.Store(attemptId, new OutboxState(partitionKey, context.MessageId, outboxRecordList));
-
-            await transaction.CommitTransactionState(context.MessageId, attemptId, batch).ConfigureAwait(false);
-
-            await PrepareSideEffects(outboxRecordList, transaction).ConfigureAwait(false);
-
-            await CommitSideEffects(outboxRecordList).ConfigureAwait(false);
-
-            //Need to ensure token is removed before TransactionId is modified and persisted
-            await outboxStore.Remove(attemptId).ConfigureAwait(false);
-            await messageStore.Delete(context.MessageId).ConfigureAwait(false);
-
-            await transaction.ClearTransactionState().ConfigureAwait(false);
+                ctx.Extensions.Set(batchContext);
+                ctx.Extensions.Set(transactionContext);
+                await next().ConfigureAwait(false);
+            });
         }
 
-        async Task FinishProcessingPreviousMessage(TransactionRecordContainer transaction, IMessageProcessingContext context)
-        {
-            var messageId = context.MessageId;
-
-            var previousOutboxState = await outboxStore.Get(transaction.AttemptId).ConfigureAwait(false);
-            if (previousOutboxState != null)
-            {
-                if (!transaction.Prepared)
-                {
-                    await PrepareSideEffects(previousOutboxState.Records, transaction).ConfigureAwait(false);
-                }
-
-                await CommitSideEffects(previousOutboxState.Records).ConfigureAwait(false);
-                await outboxStore.Remove(transaction.AttemptId).ConfigureAwait(false);
-            }
-
-            await messageStore.Delete(messageId).ConfigureAwait(false);
-
-            await transaction.ClearTransactionState().ConfigureAwait(false);
-        }
-
-        async Task CommitSideEffects(IEnumerable<OutboxRecord> previousOutboxState)
-        {
-            await sideEffectsHandlers.Commit(previousOutboxState).ConfigureAwait(false);
-        }
-
-        async Task PrepareSideEffects(IEnumerable<OutboxRecord> outboxState, TransactionRecordContainer transactionRecordContainer)
-        {
-            //Stores messages in the message store
-            await sideEffectsHandlers.Prepare(outboxState).ConfigureAwait(false);
-            await transactionRecordContainer.MarkMessagesChecked().ConfigureAwait(false);
-        }
+        
     }
 }

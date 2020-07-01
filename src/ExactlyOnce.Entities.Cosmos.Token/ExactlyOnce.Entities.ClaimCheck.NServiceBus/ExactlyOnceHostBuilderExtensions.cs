@@ -15,7 +15,7 @@ namespace ExactlyOnce.Cosmos
         {
             hostBuilder.ConfigureServices((ctx, serviceCollection) =>
             {
-                serviceCollection.AddSingleton<IConnector>(serviceProvider =>
+                serviceCollection.AddSingleton<IHumanInterfaceConnector>(serviceProvider =>
                 {
                     var dispatcher = serviceProvider.GetService<IDispatchMessages>();
                     var sideEffectsHandlers = new Dictionary<string, ISideEffectsHandler>
@@ -26,7 +26,7 @@ namespace ExactlyOnce.Cosmos
                             new DeduplicationStoreResponseSideEffectsHandler(deduplicationStore)
                     };
 
-                    var connector = new Connector(applicationStateStore, outboxStore, new SideEffectsHandlerCollection(sideEffectsHandlers),
+                    var connector = new HumanInterfaceConnector(applicationStateStore, outboxStore,
                         deduplicationStore, serviceProvider.GetService<IMessageSession>());
                     return connector;
                 });

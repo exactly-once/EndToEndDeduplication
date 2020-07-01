@@ -1,14 +1,16 @@
-﻿namespace ExactlyOnce.ClaimCheck
+﻿using System;
+
+namespace ExactlyOnce.ClaimCheck
 {
     public class Message
     {
-        public Message(string id, byte[] body)
+        public Message(string messageId, byte[] body)
         {
-            Id = id;
+            MessageId = messageId;
             Body = body;
         }
 
-        public string Id { get; }
+        public string MessageId { get; }
         public byte[] Body { get; }
     }
 }

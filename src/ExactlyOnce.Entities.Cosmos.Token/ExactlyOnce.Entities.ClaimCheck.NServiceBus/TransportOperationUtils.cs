@@ -12,22 +12,29 @@ namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
 {
     static class TransportOperationUtils
     {
-        public static OutboxRecord ToOutboxRecord(this TransportOperation op)
+        public static OutgoingMessageRecord ToMessageRecord(this TransportOperation op, string incomingId, Guid attemptId)
         {
-            return new OutboxRecord("TransportOperation", op.Message.Headers, op.Message.Body, SerializeOptions(op));
+            return new OutgoingMessageRecord
+            {
+                Id = op.Message.MessageId,
+                AttemptId = attemptId,
+                IncomingId = incomingId,
+                Headers = op.Message.Headers,
+                Metadata = SerializeOptions(op)
+            };
         }
 
-        public static TransportOperation ToClaimCheckTransportOperation(this OutboxRecord message)
+        public static TransportOperation ToTransportOperation(this OutgoingMessageRecord message)
         {
-            return new TransportOperation(new OutgoingMessage(message.Metadata["MessageId"], message.Properties, new byte[0]),
+            return new TransportOperation(new OutgoingMessage(message.Id, message.Headers, new byte[0]),
                 DeserializeAddressTag(message.Metadata),
                 DispatchConsistency.Default,
                 DeserializeConstraints(message.Metadata));
         }
 
-        public static Message ToClaimCheckMessage(this OutboxRecord message)
+        public static Message ToCheck(this TransportOperation op, Guid attemptId)
         {
-            return new Message(message.Metadata["MessageId"], message.BinaryPayload);
+            return new Message(op.Message.MessageId, op.Message.Body);
         }
 
 

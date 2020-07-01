@@ -6,7 +6,7 @@ using NServiceBus;
 
 namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
 {
-    class Connector : IConnector
+    class MachineInterfaceConnector : IConnector
     {
         Container applicationStoreContainer;
         IMessageSession messageSession;
@@ -14,7 +14,7 @@ namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
         SideEffectsHandlerCollection sideEffectsHandlers;
         IOutboxStore outboxStore;
 
-        public Connector(Container applicationStoreContainer, IOutboxStore outboxStore, SideEffectsHandlerCollection sideEffectsHandlers, IConnectorDeduplicationStore deduplicationStore, IMessageSession messageSession)
+        public MachineInterfaceConnector(Container applicationStoreContainer, IOutboxStore outboxStore, SideEffectsHandlerCollection sideEffectsHandlers, IConnectorDeduplicationStore deduplicationStore, IMessageSession messageSession)
         {
             this.applicationStoreContainer = applicationStoreContainer;
             this.outboxStore = outboxStore;
@@ -31,7 +31,7 @@ namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
         public async Task ExecuteTransaction(string requestId, string partitionKey, HttpResponse currentResponse,
             Func<IConnectorMessageSession, Task<int>> transaction)
         {
-            var session = new ConnectorMessageSession(requestId, partitionKey, currentResponse, applicationStoreContainer, messageSession, deduplicationStore, sideEffectsHandlers, outboxStore);
+            var session = new ConnectorMessageSession(requestId, partitionKey, currentResponse, applicationStoreContainer, messageSession, sideEffectsHandlers);
             if (await session.Open().ConfigureAwait(false))
             {
                 await transaction(session).ConfigureAwait(false);

@@ -20,6 +20,11 @@ namespace ExactlyOnce.ClaimCheck.BlobStore
             return containerClient.GetBlobClient(messageId).DeleteAsync();
         }
 
+        public Task EnsureDeleted(string[] messageIds)
+        {
+            throw new NotImplementedException();
+        }
+
         public async Task<byte[]> TryGet(string id)
         {
             var response = await containerClient.GetBlobClient(id).DownloadAsync().ConfigureAwait(false);
@@ -43,7 +48,7 @@ namespace ExactlyOnce.ClaimCheck.BlobStore
             {
                 using (var stream = new MemoryStream(m.Body))
                 {
-                    await containerClient.GetBlobClient(m.Id).UploadAsync(stream).ConfigureAwait(false);
+                    await containerClient.GetBlobClient(m.MessageId).UploadAsync(stream).ConfigureAwait(false);
                 }
             });
 

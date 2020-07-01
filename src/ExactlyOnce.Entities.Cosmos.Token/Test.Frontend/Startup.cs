@@ -24,7 +24,7 @@ public class Startup
             var change = int.Parse(context.Request.Query["change"]);
             var partitionKey = new PartitionKey(partition);
 
-            var connector = context.RequestServices.GetRequiredService<IConnector>();
+            var connector = context.RequestServices.GetRequiredService<IHumanInterfaceConnector>();
 
             await connector.ExecuteTransaction(request, partition, context.Response, async session =>
             {

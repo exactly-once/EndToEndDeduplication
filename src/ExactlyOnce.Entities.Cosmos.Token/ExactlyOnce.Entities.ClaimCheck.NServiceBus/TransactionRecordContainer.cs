@@ -1,8 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
-using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Azure.Cosmos;
@@ -38,17 +37,28 @@ namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
 
 
         public string MessageId => value.MessageId;
-        public bool Prepared => value.MessagesChecked;
-
         public Guid AttemptId
         {
             get
             {
                 if (!value.AttemptId.HasValue)
                 {
-                    throw new Exception("No attempt ID");
+                    throw new Exception("No transaction in progress");
                 }
                 return value.AttemptId.Value;
+            }
+        }
+
+        public List<OutgoingMessageRecord> MessageRecords
+        {
+            get
+            {
+                if (MessageRecords == null)
+                {
+                    throw new Exception("No transaction in progress");
+                }
+
+                return MessageRecords;
             }
         }
 
@@ -69,23 +79,32 @@ namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
                 };
             }
         }
-        
 
-        public Task MarkMessagesChecked()
-        {
-            if (value.MessageId == null)
-            {
-                throw new Exception("Cannot mark messages as checked in if transaction state has not been committed.");
-            }
-            value.MessagesChecked = true;
-            return Update();
-        }
+        public IReadOnlyCollection<SideEffectRecord> CommittedSideEffects =>
+            value.SideEffects
+                .Where(x => x.AttemptId == value.AttemptId && x.IncomingId == value.MessageId)
+                .ToArray();
+
+        public IReadOnlyCollection<SideEffectRecord> AbortedSideEffects =>
+            value.SideEffects
+                .Where(x => x.AttemptId != value.AttemptId && x.IncomingId == value.MessageId)
+                .ToArray();
 
         public Task ClearTransactionState()
         {
+            value.SideEffects.RemoveAll(x => x.IncomingId == value.MessageId);
             value.MessageId = null;
             value.AttemptId = null;
-            value.MessagesChecked = false;
+            return Update();
+        }
+
+        public Task AddSideEffects(List<SideEffectRecord> messageRecords)
+        {
+            if (value.MessageId != null)
+            {
+                throw new Exception("Cannot add messages if transaction has already been committed.");
+            }
+            value.SideEffects.AddRange(messageRecords);
             return Update();
         }
 
@@ -130,11 +149,6 @@ namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
             var response = await batch.ExecuteAsync().ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
-                for (int index = 0; index < response.Count; index++)
-                {
-                    TransactionalBatchOperationResult operationResult = response[index];
-                    int code = (int)operationResult.StatusCode;
-                }
                 throw new Exception(response.ToString());
             }
             etag = response.Last().ETag;

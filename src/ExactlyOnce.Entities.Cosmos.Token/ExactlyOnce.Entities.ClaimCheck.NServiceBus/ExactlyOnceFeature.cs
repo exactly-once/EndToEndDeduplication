@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using NServiceBus;
+using NServiceBus.Extensibility;
 using NServiceBus.Features;
 using NServiceBus.Transport;
 
@@ -15,18 +16,17 @@ namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
             context.Pipeline.Register(b =>
                 {
                     var dispatcher = b.Build<IDispatchMessages>();
-                    var sideEffectsHandlers = new Dictionary<string, ISideEffectsHandler>
+                    var handlerCollection = new SideEffectsHandlerCollection(new ISideEffectsHandler[]
                     {
-                        ["TransportOperation"] =
-                            new MessagingWithClaimCheckSideEffectsHandler(settings.MessageStore, dispatcher),
-                    };
-                    var handlerCollection = new SideEffectsHandlerCollection(sideEffectsHandlers);
-                    return new ExactlyOnceBehavior(settings.ApplicationStateStore, settings.OutboxStore, settings.MessageStore,
-                        handlerCollection, new CorrelationManager(settings));
+                        new MessagingWithClaimCheckSideEffectsHandler(settings.MessageStore, dispatcher) 
+                    });
+                    var processor = new ExactlyOnceProcessor<IExtendable>(settings.ApplicationStateStore, handlerCollection);
+                    return new ExactlyOnceBehavior(new CorrelationManager(settings), processor, settings.MessageStore);
                 }, 
                 "Ensures side effects of processing messages by entities are persisted exactly once.");
 
             context.Pipeline.Register(new LoadMessageBodyBehavior(settings.MessageStore), "Loads message bodies from store.");
+            context.Pipeline.Register(new CaptureOutgoingMessagesBehavior(settings.MessageStore), "Captures the outgoing messages.");
         }
     }
 }

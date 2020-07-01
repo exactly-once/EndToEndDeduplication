@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using ExactlyOnce.ClaimCheck;
@@ -7,7 +8,7 @@ using NServiceBus.Transport;
 
 namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
 {
-    class MessagingWithClaimCheckSideEffectsHandler : ISideEffectsHandler
+    class MessagingWithClaimCheckSideEffectsHandler : SideEffectsHandler<OutgoingMessageRecord>
     {
         readonly IMessageStore messageStore;
         readonly IDispatchMessages dispatcher;
@@ -18,16 +19,21 @@ namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
             this.dispatcher = dispatcher;
         }
 
-        public Task Prepare(List<OutboxRecord> records)
+        protected override async Task Publish(string messageId, Guid attemptId, 
+            IEnumerable<OutgoingMessageRecord> committedSideEffects, 
+            IEnumerable<OutgoingMessageRecord> abortedSideEffects)
         {
-            var messages = records.Select(r => r.ToClaimCheckMessage()).ToArray();
-            return messageStore.Create(messages);
-        }
+            //Publish committed
+            var operations = committedSideEffects.Select(r => r.ToTransportOperation()).ToArray();
+            await dispatcher.Dispatch(new TransportOperations(operations), new TransportTransaction(), new ContextBag())
+                .ConfigureAwait(false);
 
-        public Task Commit(List<OutboxRecord> records)
-        {
-            var operations = records.Select(r => r.ToClaimCheckTransportOperation()).ToArray();
-            return dispatcher.Dispatch(new TransportOperations(operations), new TransportTransaction(), new ContextBag());
+            //Clean up aborted
+            await messageStore.EnsureDeleted(abortedSideEffects.Select(r => r.Id).ToArray())
+                .ConfigureAwait(false);
+
+            //Remove the incoming message
+            await messageStore.Delete(messageId).ConfigureAwait(false);
         }
     }
 }
