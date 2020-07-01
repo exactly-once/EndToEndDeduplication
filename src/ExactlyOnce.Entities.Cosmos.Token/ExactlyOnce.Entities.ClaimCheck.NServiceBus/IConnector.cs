@@ -8,7 +8,7 @@ namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
     /// <summary>
     /// An instance of a connector
     /// </summary>
-    public interface IHumanInterfaceConnector
+    public interface IConnector
     {
         /// <summary>
         /// Starts the connector.

@@ -19,19 +19,23 @@ public class Startup
     {
         app.Run(async context =>
         {
-            var partition = context.Request.Query["account"];
+            if (context.Request.Path.Value != "/")
+            {
+                context.Response.StatusCode = 404;
+                return;
+            }
+            var partitionKey = context.Request.Query["account"];
             var request = context.Request.Query["rid"];
             var change = int.Parse(context.Request.Query["change"]);
-            var partitionKey = new PartitionKey(partition);
 
-            var connector = context.RequestServices.GetRequiredService<IHumanInterfaceConnector>();
+            var connector = context.RequestServices.GetRequiredService<IConnector>();
 
-            await connector.ExecuteTransaction(request, partition, context.Response, async session =>
+            await connector.ExecuteTransaction(request, partitionKey, async session =>
             {
                 Account account;
                 try
                 {
-                    account = await session.Container.ReadItemAsync<Account>(partition, partitionKey);
+                    account = await session.TransactionBatch.ReadItemAsync<Account>(partitionKey);
                 }
                 catch (CosmosException e)
                 {
@@ -39,8 +43,8 @@ public class Startup
                     {
                         account = new Account
                         {
-                            Id = partition,
-                            AccountNumber = partition
+                            Id = partitionKey,
+                            AccountNumber = partitionKey
                         };
                     }
                     else
@@ -51,13 +55,14 @@ public class Startup
 
                 account.Value += change;
                 session.TransactionBatch.UpsertItem(account);
-                session.Send(new AddCommand
+                await session.Send(new AddCommand
                 {
-                    AccountNumber = partition,
+                    AccountNumber = partitionKey,
                     Change = change
                 });
-                return 200;
             });
+
+            context.Response.StatusCode = 200;
         });
         //app.UseRouting();
         //app.UseEndpoints(c => c.MapControllers());

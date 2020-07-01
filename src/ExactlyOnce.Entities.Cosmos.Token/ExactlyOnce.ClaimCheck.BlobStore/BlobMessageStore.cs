@@ -3,12 +3,13 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 
 namespace ExactlyOnce.ClaimCheck.BlobStore
 {
     public class BlobMessageStore : IMessageStore
     {
-        BlobContainerClient containerClient;
+        readonly BlobContainerClient containerClient;
 
         public BlobMessageStore(BlobContainerClient containerClient)
         {
@@ -22,7 +23,10 @@ namespace ExactlyOnce.ClaimCheck.BlobStore
 
         public Task EnsureDeleted(string[] messageIds)
         {
-            throw new NotImplementedException();
+            var deleteTasks = messageIds.Select(x =>
+                containerClient.GetBlobClient(x).DeleteIfExistsAsync(DeleteSnapshotsOption.IncludeSnapshots));
+
+            return Task.WhenAll(deleteTasks);
         }
 
         public async Task<byte[]> TryGet(string id)

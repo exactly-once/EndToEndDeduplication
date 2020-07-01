@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using ExactlyOnce.ClaimCheck;
+using NServiceBus.Logging;
 using NServiceBus.Pipeline;
 
 namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
@@ -8,6 +9,7 @@ namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
     class LoadMessageBodyBehavior : Behavior<IIncomingPhysicalMessageContext>
     {
         IMessageStore messageStore;
+        static ILog log = LogManager.GetLogger<LoadMessageBodyBehavior>();
 
         public LoadMessageBodyBehavior(IMessageStore messageStore)
         {
@@ -19,7 +21,10 @@ namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
             var messageBody = await messageStore.TryGet(context.MessageId).ConfigureAwait(false);
             if (messageBody == null)
             {
-                //Message has been processed
+                if (log.IsDebugEnabled)
+                {
+                    log.Debug($"Ignoring duplicate message {context.MessageId} because the corresponding token no longer exists.");
+                }
                 return;
             }
             context.UpdateMessage(messageBody);

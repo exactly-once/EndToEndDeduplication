@@ -4,10 +4,6 @@ using ExactlyOnce.Entities.ClaimCheck.NServiceBus;
 using NServiceBus.Configuration.AdvancedExtensibility;
 using NServiceBus.Features;
 
-namespace ExactlyOnce.Cosmos
-{
-}
-
 // ReSharper disable once CheckNamespace
 namespace NServiceBus
 {
@@ -15,11 +11,9 @@ namespace NServiceBus
     {
         public static ExactlyOnceEntitiesSettings UseExactlyOnce(this EndpointConfiguration config,
             Microsoft.Azure.Cosmos.Container applicationStateStore,
-            IMessageStore messageStore, 
-            IOutboxStore outboxStore)
+            IMessageStore messageStore)
         {
             var settings = config.GetSettings().GetOrCreate<ExactlyOnceEntitiesSettings>();
-            settings.OutboxStore = outboxStore;
             settings.MessageStore = messageStore;
             settings.ApplicationStateStore = applicationStateStore;
 

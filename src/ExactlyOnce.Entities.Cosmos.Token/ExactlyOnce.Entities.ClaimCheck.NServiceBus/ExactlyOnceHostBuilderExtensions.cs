@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using ExactlyOnce.ClaimCheck;
 using ExactlyOnce.Entities.ClaimCheck.NServiceBus;
+using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NServiceBus;
@@ -10,24 +11,25 @@ namespace ExactlyOnce.Cosmos
 {
     public static class ExactlyOnceHostBuilderExtensions
     {
-        public static IHostBuilder UseExactlyOnce(this IHostBuilder hostBuilder, Microsoft.Azure.Cosmos.Container applicationStateStore, IOutboxStore outboxStore,
-            IMessageStore messageStore, IConnectorDeduplicationStore deduplicationStore)
+        public static IHostBuilder UseAtomicCommitMessageSession(this IHostBuilder hostBuilder, 
+            Container applicationStateContainer,
+            Container transactionInProgressContainer,
+            IMessageStore messageStore)
         {
             hostBuilder.ConfigureServices((ctx, serviceCollection) =>
             {
-                serviceCollection.AddSingleton<IHumanInterfaceConnector>(serviceProvider =>
+                serviceCollection.AddSingleton<IConnector>(serviceProvider =>
                 {
                     var dispatcher = serviceProvider.GetService<IDispatchMessages>();
-                    var sideEffectsHandlers = new Dictionary<string, ISideEffectsHandler>
+                    var transactionInProgressStore = new TransactionInProgressStore(transactionInProgressContainer);
+                    var sideEffectsHandlers = new ISideEffectsHandler[]
                     {
-                        ["TransportOperation"] =
-                            new MessagingWithClaimCheckSideEffectsHandler(messageStore, dispatcher),
-                        ["HttpResponse"] =
-                            new DeduplicationStoreResponseSideEffectsHandler(deduplicationStore)
+                        new WebMessagingWithClaimCheckSideEffectsHandler(messageStore, dispatcher),
+                        new TransactionInProgressSideEffectHandler(transactionInProgressStore),
                     };
 
-                    var connector = new HumanInterfaceConnector(applicationStateStore, outboxStore,
-                        deduplicationStore, serviceProvider.GetService<IMessageSession>());
+                    var connector = new HumanInterfaceConnector(applicationStateContainer, new SideEffectsHandlerCollection(sideEffectsHandlers),
+                        serviceProvider.GetService<IMessageSession>(), transactionInProgressStore, messageStore);
                     return connector;
                 });
             });

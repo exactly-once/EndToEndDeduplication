@@ -10,6 +10,8 @@ namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
         public string Id { get; set; }
         public string MessageId { get; set; }
         public Guid? AttemptId { get; set; }
+        
+        [JsonProperty(TypeNameHandling = TypeNameHandling.Auto)]
         public List<SideEffectRecord> SideEffects { get; set; } = new List<SideEffectRecord>();
         public string PartitionId { get; set; }
         [JsonProperty("_etag")]

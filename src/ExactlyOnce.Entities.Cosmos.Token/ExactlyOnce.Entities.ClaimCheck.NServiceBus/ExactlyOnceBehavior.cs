@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using ExactlyOnce.ClaimCheck;
 using NServiceBus.Extensibility;
+using NServiceBus.Logging;
 using NServiceBus.Pipeline;
 
 namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
@@ -11,6 +12,8 @@ namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
         readonly CorrelationManager correlation;
         readonly ExactlyOnceProcessor<IExtendable> exactlyOnceProcessor;
         readonly IMessageStore messageStore;
+
+        static readonly ILog log = LogManager.GetLogger<ExactlyOnceBehavior>();
 
         public ExactlyOnceBehavior(CorrelationManager correlation, ExactlyOnceProcessor<IExtendable> exactlyOnceProcessor, IMessageStore messageStore)
         {
@@ -26,16 +29,26 @@ namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
             if (!correlation.TryGetPartitionKey(context.Message.MessageType, context.Headers, context.Message.Instance,
                 out var partitionKey))
             {
+                if (log.IsDebugEnabled)
+                {
+                    log.Debug($"Message {currentMessageId} has not been mapped to exactly-once partition.");
+                }
                 //This message has not been mapped but correlation manager allows it to be processed.
                 return next();
             }
+            if (log.IsDebugEnabled)
+            {
+                log.Debug($"Beginning exactly-once processing of message {currentMessageId}.");
+            }
             return exactlyOnceProcessor.Process(currentMessageId, partitionKey, context, async (ctx, batchContext, transactionContext) =>
             {
-                //Check the de-duplication store if we already processed that message. Has to be done after loading the transaction.
                 var messageExists = await messageStore.CheckExists(currentMessageId).ConfigureAwait(false);
                 if (!messageExists)
                 {
-                    //Duplicate
+                    if (log.IsDebugEnabled)
+                    {
+                        log.Debug($"Ignoring duplicate message {context.MessageId} because the corresponding token no longer exists.");
+                    }
                     return;
                 }
 

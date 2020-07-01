@@ -12,7 +12,6 @@ namespace NServiceBus
             = new Dictionary<Type, Func<object, Dictionary<string, string>, string>>();
 
         internal bool ProcessUnmappedMessages;
-        internal IOutboxStore OutboxStore { get; set; }
         internal IMessageStore MessageStore { get; set; }
         internal Microsoft.Azure.Cosmos.Container ApplicationStateStore { get; set; }
 

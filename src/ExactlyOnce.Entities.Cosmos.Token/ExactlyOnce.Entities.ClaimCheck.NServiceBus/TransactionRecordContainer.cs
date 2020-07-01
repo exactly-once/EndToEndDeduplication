@@ -31,7 +31,8 @@ namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
             contractResolver.NamingStrategy = new TransactionRecordNamingStrategy("AccountNumber");
             serializer = JsonSerializer.Create(new JsonSerializerSettings
             {
-                ContractResolver = contractResolver
+                ContractResolver = contractResolver,
+                TypeNameHandling = TypeNameHandling.Auto
             });
         }
 
@@ -72,11 +73,17 @@ namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
             }
             else
             {
-                value = new TransactionRecord
+                response = await container.CreateItemStreamAsync(ToStream(new TransactionRecord
                 {
                     Id = TransactionEntityId,
                     PartitionId = partitionId
-                };
+                }), partitionKey);
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new Exception($"Failed to create transaction record for partition {partitionKey}");
+                }
+                value = FromStream(response.Content);
+                etag = value.Etag;
             }
         }
 

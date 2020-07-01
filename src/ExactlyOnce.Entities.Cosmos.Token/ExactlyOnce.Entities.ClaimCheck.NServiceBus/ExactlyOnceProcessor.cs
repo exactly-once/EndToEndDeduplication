@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Azure.Cosmos;
+using NServiceBus.Logging;
 
 namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
 {
@@ -9,6 +10,7 @@ namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
     {
         readonly Container applicationStateContainer;
         readonly SideEffectsHandlerCollection sideEffectsHandlerCollection;
+        static readonly ILog log = LogManager.GetLogger<ExactlyOnceProcessor<TContext>>();
 
         public ExactlyOnceProcessor(Container applicationStateContainer, 
             SideEffectsHandlerCollection sideEffectsHandlerCollection)
@@ -40,31 +42,68 @@ namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
             var previousTransactionId = transaction.MessageId;
             if (previousTransactionId != null)
             {
+                if (log.IsDebugEnabled)
+                {
+                    log.Debug($"Unfinished transaction {previousTransactionId} detected. Attempting to complete that transaction.");
+                }
                 await FinishProcessing(transaction).ConfigureAwait(false);
 
                 if (previousTransactionId == currentMessageId)
                 {
-                    //Duplicate
+                    if (log.IsDebugEnabled)
+                    {
+                        log.Debug($"Duplicate message {currentMessageId} detected. Ignoring.");
+                    }
                     return;
                 }
             }
 
             var attemptId = Guid.NewGuid();
+            if (log.IsDebugEnabled)
+            {
+                log.Debug($"Beginning attempt {attemptId} to process message {currentMessageId}.");
+            }
+
             var batch = applicationStateContainer.CreateTransactionalBatch(new PartitionKey(partitionKey));
             var batchContext = new TransactionBatchContext(batch, applicationStateContainer, new PartitionKey(partitionKey));
 
             await invokeMessageHandlers(context, batchContext, new TransactionContext(attemptId, transaction)).ConfigureAwait(false);
 
+            if (log.IsDebugEnabled)
+            {
+                log.Debug($"Committing transaction for attempt {attemptId} message {currentMessageId}.");
+            }
             await transaction.CommitTransactionState(currentMessageId, attemptId, batch).ConfigureAwait(false);
             await FinishProcessing(transaction).ConfigureAwait(false);
         }
 
+        public async Task<bool> FinishProcessing(string transactionId, string partitionKey)
+        {
+            var transaction = new TransactionRecordContainer(applicationStateContainer, partitionKey);
+            await transaction.Load().ConfigureAwait(false);
+            if (transaction.MessageId != transactionId)
+            {
+                return false;
+            }
+            await FinishProcessing(transaction).ConfigureAwait(false);
+            return true;
+
+        }
+
         async Task FinishProcessing(TransactionRecordContainer transaction)
         {
+            if (log.IsDebugEnabled)
+            {
+                log.Debug($"Publishing side effects of processing message {transaction.MessageId} (successful attempt {transaction.AttemptId}).");
+            }
             await sideEffectsHandlerCollection.Publish(transaction.MessageId, transaction.AttemptId, 
                 transaction.CommittedSideEffects, 
                 transaction.AbortedSideEffects).ConfigureAwait(false);
 
+            if (log.IsDebugEnabled)
+            {
+                log.Debug($"Clearing transaction state for message {transaction.MessageId}.");
+            }
             await transaction.ClearTransactionState().ConfigureAwait(false);
         }
 

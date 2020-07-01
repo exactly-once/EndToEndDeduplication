@@ -1,21 +1,24 @@
 ﻿using System;
 using System.Threading.Tasks;
+using ExactlyOnce.ClaimCheck;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.Cosmos;
 using NServiceBus;
 
 namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
 {
-    class HumanInterfaceConnector : IHumanInterfaceConnector
+    class HumanInterfaceConnector : IConnector
     {
-        IMessageSession rootMessageSession;
-        ExactlyOnceProcessor<object> processor;
-        ITransactionInProgressStore transactionInProgressStore;
+        readonly IMessageSession rootMessageSession;
+        readonly ExactlyOnceProcessor<object> processor;
+        readonly ITransactionInProgressStore transactionInProgressStore;
+        readonly IMessageStore messageStore;
 
-        public HumanInterfaceConnector(Container applicationStoreContainer, SideEffectsHandlerCollection sideEffectsHandlers, IMessageSession rootMessageSession, ITransactionInProgressStore transactionInProgressStore)
+        public HumanInterfaceConnector(Container applicationStoreContainer, SideEffectsHandlerCollection sideEffectsHandlers, IMessageSession rootMessageSession, ITransactionInProgressStore transactionInProgressStore, IMessageStore messageStore)
         {
             this.rootMessageSession = rootMessageSession;
             this.transactionInProgressStore = transactionInProgressStore;
+            this.messageStore = messageStore;
             processor = new ExactlyOnceProcessor<object>(applicationStoreContainer, sideEffectsHandlers);
         }
 
@@ -28,7 +31,7 @@ namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
         {
             return processor.Process(requestId, partitionKey, null, async (ctx, transactionBatch, transactionContext) =>
             {
-                var session = new HumanInterfaceConnectorMessageSession(transactionBatch, transactionContext, rootMessageSession);
+                var session = new HumanInterfaceConnectorMessageSession(requestId, transactionBatch, transactionContext, rootMessageSession, messageStore);
                 await transaction(session).ConfigureAwait(false);
                 await transactionInProgressStore.BeginTransaction(requestId, partitionKey).ConfigureAwait(false);
             });

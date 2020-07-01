@@ -14,7 +14,6 @@ namespace Test.Backend
         static async Task Main(string[] args)
         {
             var messageStore = new BlobMessageStore(new BlobContainerClient("UseDevelopmentStorage=true", "claim-check"));
-            var outboxStore = new BlobOutboxStore(new BlobContainerClient("UseDevelopmentStorage=true", "backend-outbox"));
 
             var clientOptions = new CosmosClientOptions();
             var client = new CosmosClient("AccountEndpoint=https://localhost:8081/;AccountKey=C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==", clientOptions);
@@ -22,7 +21,7 @@ namespace Test.Backend
 
             var endpointConfiguration = new EndpointConfiguration("Samples.ExactlyOnce.Backend");
             endpointConfiguration.UseTransport<LearningTransport>();
-            var exactlyOnceSettings =  endpointConfiguration.UseExactlyOnce(appDataContainer, messageStore, outboxStore);
+            var exactlyOnceSettings =  endpointConfiguration.UseExactlyOnce(appDataContainer, messageStore);
             exactlyOnceSettings.MapMessage<AddCommand>((payload, headers) => payload.AccountNumber);
 
             endpointConfiguration.Recoverability().Immediate(i => i.NumberOfRetries(0));
