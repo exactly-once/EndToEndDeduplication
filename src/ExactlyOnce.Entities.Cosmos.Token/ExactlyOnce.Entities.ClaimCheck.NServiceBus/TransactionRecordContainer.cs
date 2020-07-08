@@ -105,13 +105,23 @@ namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
             return Update();
         }
 
-        public Task AddSideEffects(List<SideEffectRecord> messageRecords)
+        public Task AddSideEffect(SideEffectRecord sideEffectRecord)
         {
             if (value.MessageId != null)
             {
                 throw new Exception("Cannot add messages if transaction has already been committed.");
             }
-            value.SideEffects.AddRange(messageRecords);
+            value.SideEffects.Add(sideEffectRecord);
+            return Update();
+        }
+
+        public Task AddSideEffects(List<SideEffectRecord> sideEffectRecords)
+        {
+            if (value.MessageId != null)
+            {
+                throw new Exception("Cannot add messages if transaction has already been committed.");
+            }
+            value.SideEffects.AddRange(sideEffectRecords);
             return Update();
         }
 

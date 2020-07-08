@@ -33,6 +33,11 @@ namespace Test.Backend
 
             account.Value += message.Change;
             context.TransactionBatch().UpsertItem(account);
+            await context.SendLocal(new DebitCommand
+            {
+                AccountNumber = message.AccountNumber,
+                Change = message.Change
+            }).ConfigureAwait(false);
         }
     }
 }

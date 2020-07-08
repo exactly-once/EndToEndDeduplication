@@ -19,16 +19,17 @@ public class Startup
     {
         app.Run(async context =>
         {
-            if (context.Request.Path.Value != "/")
+            if (context.Request.Path.Value != "/add")
             {
                 context.Response.StatusCode = 404;
                 return;
             }
+
             var partitionKey = context.Request.Query["account"];
             var request = context.Request.Query["rid"];
             var change = int.Parse(context.Request.Query["change"]);
 
-            var connector = context.RequestServices.GetRequiredService<IConnector>();
+            var connector = context.RequestServices.GetRequiredService<IHumanInterfaceConnector>();
 
             await connector.ExecuteTransaction(request, partitionKey, async session =>
             {

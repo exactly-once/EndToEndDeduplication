@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Net.Http;
 using ExactlyOnce.ClaimCheck;
 using ExactlyOnce.Entities.ClaimCheck.NServiceBus;
 
@@ -14,10 +15,17 @@ namespace NServiceBus
         internal bool ProcessUnmappedMessages;
         internal IMessageStore MessageStore { get; set; }
         internal Microsoft.Azure.Cosmos.Container ApplicationStateStore { get; set; }
+        internal HttpClient HttpClient { get; set; }
 
         public ExactlyOnceEntitiesSettings MapMessage<TMessage>(Func<TMessage, Dictionary<string, string>, string> correlationProperty)
         {
             Mappers[typeof(TMessage)] = (payload, headers) => correlationProperty((TMessage)payload, headers);
+            return this;
+        }
+
+        public ExactlyOnceEntitiesSettings UseHttpClient(HttpClient client)
+        {
+            HttpClient = client;
             return this;
         }
 

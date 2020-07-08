@@ -10,12 +10,12 @@ namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
     class ExactlyOnceBehavior : Behavior<IIncomingLogicalMessageContext>
     {
         readonly CorrelationManager correlation;
-        readonly ExactlyOnceProcessor<IExtendable> exactlyOnceProcessor;
+        readonly ExactlyOnceProcessor<IExtendable, object> exactlyOnceProcessor;
         readonly IMessageStore messageStore;
 
         static readonly ILog log = LogManager.GetLogger<ExactlyOnceBehavior>();
 
-        public ExactlyOnceBehavior(CorrelationManager correlation, ExactlyOnceProcessor<IExtendable> exactlyOnceProcessor, IMessageStore messageStore)
+        public ExactlyOnceBehavior(CorrelationManager correlation, ExactlyOnceProcessor<IExtendable, object> exactlyOnceProcessor, IMessageStore messageStore)
         {
             this.correlation = correlation;
             this.exactlyOnceProcessor = exactlyOnceProcessor;
@@ -49,12 +49,14 @@ namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
                     {
                         log.Debug($"Ignoring duplicate message {context.MessageId} because the corresponding token no longer exists.");
                     }
-                    return;
+                    return ProcessingResult<object>.Duplicate;
                 }
 
                 ctx.Extensions.Set(batchContext);
                 ctx.Extensions.Set(transactionContext);
                 await next().ConfigureAwait(false);
+
+                return ProcessingResult<object>.Successful(null);
             });
         }
 

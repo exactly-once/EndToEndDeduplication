@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using ExactlyOnce.ClaimCheck;
@@ -7,21 +8,23 @@ using NServiceBus.Extensibility;
 
 namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
 {
-    class HumanInterfaceConnectorMessageSession : IHumanInterfaceConnectorMessageSession
+    class MachineInterfaceConnectorMessageSession : IMachineInterfaceConnectorMessageSession
     {
         readonly string requestId;
         readonly ITransactionContext transactionContext;
         readonly IMessageSession rootSession;
         readonly IMessageStore messageStore;
 
-        public HumanInterfaceConnectorMessageSession(
+        public MachineInterfaceConnectorMessageSession(
             string requestId,
+            Stream putRequestBody,
             ITransactionBatchContext transactionBatch, 
             ITransactionContext transactionContext,
             IMessageSession rootSession, 
             IMessageStore messageStore)
         {
-            this.TransactionBatch = transactionBatch;
+            PutRequestBody = putRequestBody;
+            TransactionBatch = transactionBatch;
             this.requestId = requestId;
             this.transactionContext = transactionContext;
             this.rootSession = rootSession;
@@ -59,6 +62,7 @@ namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
         }
 
         public ITransactionBatchContext TransactionBatch { get; }
+        public Stream PutRequestBody { get; }
 
         async Task CaptureMessages(Func<IMessageSession, Task> operation, ExtendableOptions options)
         {

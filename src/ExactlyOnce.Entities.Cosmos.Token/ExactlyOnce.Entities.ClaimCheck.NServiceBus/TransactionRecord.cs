@@ -18,13 +18,6 @@ namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
         public string Etag;
     }
 
-    public class OutgoingMessageRecord : SideEffectRecord
-    {
-        public string Id { get; set; }
-        public Dictionary<string, string> Headers { get; set; }
-        public Dictionary<string, string> Metadata { get; set; }
-    }
-
     public abstract class SideEffectRecord
     {
         public string IncomingId { get; set; }

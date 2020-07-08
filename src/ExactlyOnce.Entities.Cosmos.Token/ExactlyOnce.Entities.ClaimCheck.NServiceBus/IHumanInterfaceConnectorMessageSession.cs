@@ -2,7 +2,7 @@
 
 namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
 {
-    public interface IConnectorMessageSession : IMessageSession
+    public interface IHumanInterfaceConnectorMessageSession : IMessageSession
     {
         /// <summary>
         /// Gets the transactional batch associated with this session.

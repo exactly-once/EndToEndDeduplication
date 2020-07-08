@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using Azure.Storage.Blobs;
 using ExactlyOnce.ClaimCheck;
 using ExactlyOnce.Entities.ClaimCheck.NServiceBus;
 using Microsoft.Azure.Cosmos;
@@ -18,18 +19,45 @@ namespace ExactlyOnce.Cosmos
         {
             hostBuilder.ConfigureServices((ctx, serviceCollection) =>
             {
-                serviceCollection.AddSingleton<IConnector>(serviceProvider =>
+                serviceCollection.AddSingleton<IHumanInterfaceConnector>(serviceProvider =>
                 {
                     var dispatcher = serviceProvider.GetService<IDispatchMessages>();
-                    var transactionInProgressStore = new TransactionInProgressStore(transactionInProgressContainer);
-                    var sideEffectsHandlers = new ISideEffectsHandler[]
-                    {
-                        new WebMessagingWithClaimCheckSideEffectsHandler(messageStore, dispatcher),
-                        new TransactionInProgressSideEffectHandler(transactionInProgressStore),
-                    };
+                    var rootMessageSession = serviceProvider.GetService<IMessageSession>();
 
-                    var connector = new HumanInterfaceConnector(applicationStateContainer, new SideEffectsHandlerCollection(sideEffectsHandlers),
-                        serviceProvider.GetService<IMessageSession>(), transactionInProgressStore, messageStore);
+                    var transactionInProgressStore = new TransactionInProgressStore(transactionInProgressContainer);
+                    
+                    var connector = new HumanInterfaceConnector(applicationStateContainer, new ISideEffectsHandler[0], 
+                        rootMessageSession, dispatcher, transactionInProgressStore, messageStore);
+                    return connector;
+                });
+            });
+
+
+            return hostBuilder;
+        }
+
+        public static IHostBuilder UseExactlyOnceWebMachineInterface(this IHostBuilder hostBuilder,
+            Container applicationStateContainer,
+            IMachineWebInterfaceRequestStore requestStore,
+            IMachineWebInterfaceResponseStore responseStore,
+            IMessageStore messageStore)
+        {
+            hostBuilder.ConfigureServices((ctx, serviceCollection) =>
+            {
+                serviceCollection.AddSingleton<IMachineInterfaceConnector>(serviceProvider =>
+                {
+                    var dispatcher = serviceProvider.GetService<IDispatchMessages>();
+                    var rootMessageSession = serviceProvider.GetService<IMessageSession>();
+                    
+                    var connector = new MachineInterfaceConnector(
+                        applicationStateContainer, 
+                        new ISideEffectsHandler[0], 
+                        rootMessageSession, 
+                        dispatcher, 
+                        messageStore, 
+                        requestStore, 
+                        responseStore);
+
                     return connector;
                 });
             });

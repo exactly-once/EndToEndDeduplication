@@ -20,11 +20,15 @@ namespace Test.Backend
             var appDataContainer = client.GetContainer("ExactlyOnce", "backend");
 
             var endpointConfiguration = new EndpointConfiguration("Samples.ExactlyOnce.Backend");
-            endpointConfiguration.UseTransport<LearningTransport>();
+            var transport = endpointConfiguration.UseTransport<LearningTransport>();
             var exactlyOnceSettings =  endpointConfiguration.UseExactlyOnce(appDataContainer, messageStore);
-            exactlyOnceSettings.MapMessage<AddCommand>((payload, headers) => payload.AccountNumber);
 
-            endpointConfiguration.Recoverability().Immediate(i => i.NumberOfRetries(0));
+            exactlyOnceSettings.MapMessage<AddCommand>((payload, headers) => payload.AccountNumber);
+            exactlyOnceSettings.MapMessage<DebitCommand>((payload, headers) => payload.AccountNumber);
+            exactlyOnceSettings.MapMessage<DebitCompleteCommand>((payload, headers) => payload.AccountNumber);
+
+            transport.Routing().RouteToEndpoint(typeof(DebitCompleteCommand), "Samples.ExactlyOnce.Backend");
+
             endpointConfiguration.Recoverability().Delayed(d => d.NumberOfRetries(0));
             
             var endpoint = await Endpoint.Start(endpointConfiguration);

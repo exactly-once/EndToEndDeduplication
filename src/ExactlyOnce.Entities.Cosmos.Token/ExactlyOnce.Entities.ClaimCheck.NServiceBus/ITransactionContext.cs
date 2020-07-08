@@ -7,6 +7,7 @@ namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
     public interface ITransactionContext
     {
         Guid AttemptId { get; }
-        Task AddSideEffects(List<SideEffectRecord> messageRecords);
+        Task AddSideEffect(SideEffectRecord sideEffectRecord);
+        Task AddSideEffects(List<SideEffectRecord> sideEffectRecords);
     }
 }

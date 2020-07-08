@@ -6,11 +6,12 @@ using NServiceBus.Logging;
 
 namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
 {
-    class ExactlyOnceProcessor<TContext>
+    class ExactlyOnceProcessor<TContext, TResult>
+        where TResult : class
     {
         readonly Container applicationStateContainer;
         readonly SideEffectsHandlerCollection sideEffectsHandlerCollection;
-        static readonly ILog log = LogManager.GetLogger<ExactlyOnceProcessor<TContext>>();
+        static readonly ILog log = LogManager.GetLogger<ExactlyOnceProcessor<TContext, TResult>>();
 
         public ExactlyOnceProcessor(Container applicationStateContainer, 
             SideEffectsHandlerCollection sideEffectsHandlerCollection)
@@ -33,8 +34,8 @@ namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
         /// - Message A processing attempt 2 is started, resulting in message records stored as A-2-1.
         /// - Message A processing attempt 2 is finished. Messages A-1-1 and A-1-2 are deleted.
         /// </summary>
-        public async Task Process(string currentMessageId, string partitionKey, TContext context,
-            Func<TContext, ITransactionBatchContext, ITransactionContext, Task> invokeMessageHandlers)
+        public async Task<ProcessingResult<TResult>> Process(string currentMessageId, string partitionKey, TContext context,
+            Func<TContext, ITransactionBatchContext, ITransactionContext, Task<ProcessingResult<TResult>>> invokeMessageHandlers)
         {
             var transaction = new TransactionRecordContainer(applicationStateContainer, partitionKey);
             await transaction.Load().ConfigureAwait(false);
@@ -54,7 +55,7 @@ namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
                     {
                         log.Debug($"Duplicate message {currentMessageId} detected. Ignoring.");
                     }
-                    return;
+                    return ProcessingResult<TResult>.Duplicate;
                 }
             }
 
@@ -67,14 +68,24 @@ namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
             var batch = applicationStateContainer.CreateTransactionalBatch(new PartitionKey(partitionKey));
             var batchContext = new TransactionBatchContext(batch, applicationStateContainer, new PartitionKey(partitionKey));
 
-            await invokeMessageHandlers(context, batchContext, new TransactionContext(attemptId, transaction)).ConfigureAwait(false);
-
+            var result = await invokeMessageHandlers(context, batchContext, new TransactionContext(attemptId, transaction)).ConfigureAwait(false);
+            if (result.IsDuplicate)
+            {
+                if (log.IsDebugEnabled)
+                {
+                    log.Debug($"Duplicate message {currentMessageId} detected. Ignoring.");
+                }
+                return result;
+            }
             if (log.IsDebugEnabled)
             {
                 log.Debug($"Committing transaction for attempt {attemptId} message {currentMessageId}.");
             }
+
             await transaction.CommitTransactionState(currentMessageId, attemptId, batch).ConfigureAwait(false);
             await FinishProcessing(transaction).ConfigureAwait(false);
+
+            return result;
         }
 
         public async Task<bool> FinishProcessing(string transactionId, string partitionKey)
@@ -118,9 +129,15 @@ namespace ExactlyOnce.Entities.ClaimCheck.NServiceBus
             }
 
             public Guid AttemptId { get; }
-            public Task AddSideEffects(List<SideEffectRecord> messageRecords)
+
+            public Task AddSideEffect(SideEffectRecord sideEffectRecord)
             {
-                return transactionRecordContainer.AddSideEffects(messageRecords);
+                return transactionRecordContainer.AddSideEffect(sideEffectRecord);
+            }
+
+            public Task AddSideEffects(List<SideEffectRecord> sideEffectRecords)
+            {
+                return transactionRecordContainer.AddSideEffects(sideEffectRecords);
             }
         }
     }
