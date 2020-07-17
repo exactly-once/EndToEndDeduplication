@@ -1,6 +1,6 @@
 using System;
 using System.Net;
-using ExactlyOnce.Entities.ClaimCheck.NServiceBus;
+using ExactlyOnce.NServiceBus;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.Cosmos;
@@ -25,18 +25,17 @@ public class Startup
                 return;
             }
 
-            var partitionKey = context.Request.Query["account"];
+            var accountId = context.Request.Query["account"];
             var request = context.Request.Query["rid"];
             var change = int.Parse(context.Request.Query["change"]);
+            var connector = context.RequestServices.GetRequiredService<IHumanInterfaceConnector<string>>();
 
-            var connector = context.RequestServices.GetRequiredService<IHumanInterfaceConnector>();
-
-            await connector.ExecuteTransaction(request, partitionKey, async session =>
+            var code = await connector.ExecuteTransaction(request, accountId, async session =>
             {
                 Account account;
                 try
                 {
-                    account = await session.TransactionBatch.ReadItemAsync<Account>(partitionKey);
+                    account = await session.TransactionContext.Batch().ReadItemAsync<Account>(accountId);
                 }
                 catch (CosmosException e)
                 {
@@ -44,28 +43,27 @@ public class Startup
                     {
                         account = new Account
                         {
-                            Id = partitionKey,
-                            AccountNumber = partitionKey
+                            Id = accountId,
+                            AccountNumber = accountId
                         };
                     }
                     else
                     {
-                        throw;
+                        return 500;
                     }
                 }
 
                 account.Value += change;
-                session.TransactionBatch.UpsertItem(account);
+                session.TransactionContext.Batch().UpsertItem(account);
                 await session.Send(new AddCommand
                 {
-                    AccountNumber = partitionKey,
+                    AccountNumber = accountId,
                     Change = change
                 });
+                return 200;
             });
 
-            context.Response.StatusCode = 200;
+            context.Response.StatusCode = code;
         });
-        //app.UseRouting();
-        //app.UseEndpoints(c => c.MapControllers());
     }
 }

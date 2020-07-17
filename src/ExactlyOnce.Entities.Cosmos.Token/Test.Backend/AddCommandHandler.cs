@@ -13,7 +13,7 @@ namespace Test.Backend
             Account account;
             try
             {
-                account = await context.TransactionBatch().ReadItemAsync<Account>(message.AccountNumber);
+                account = await context.TransactionContext().Batch().ReadItemAsync<Account>(message.AccountNumber);
             }
             catch (CosmosException e)
             {
@@ -32,7 +32,7 @@ namespace Test.Backend
             }
 
             account.Value += message.Change;
-            context.TransactionBatch().UpsertItem(account);
+            context.TransactionContext().Batch().UpsertItem(account);
             await context.SendLocal(new DebitCommand
             {
                 AccountNumber = message.AccountNumber,

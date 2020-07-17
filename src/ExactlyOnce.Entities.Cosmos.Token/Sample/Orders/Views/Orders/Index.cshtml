@@ -1,0 +1,24 @@
+﻿@model List<Orders.DomainModel.Order>
+@{
+    ViewData["Title"] = "Your orders";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+<table>
+    <tr>
+        <th>Prod</th>
+        <th>Count</th>
+        <th>Value</th>
+    </tr>
+    @foreach (var item in Model)
+    {
+        <tr>
+            <td>@Html.ActionLink(item.Id, "Index", "Order", new { customerId = item.Customer, orderId = item.Id })</td>
+            <td>@item.State</td>
+        </tr>
+    }
+</table>
+
+
+@Html.ActionLink("Create new", "Create", "Orders", ViewContext.RouteData.Values)

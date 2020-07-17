@@ -1,12 +1,13 @@
 using System;
 using System.Linq;
 using System.Net;
-using ExactlyOnce.Entities.ClaimCheck.NServiceBus;
+using ExactlyOnce.NServiceBus;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.DependencyInjection;
+using NServiceBus;
 
 public class Startup
 {
@@ -25,7 +26,7 @@ public class Startup
                 return;
             }
 
-            var connector = context.RequestServices.GetRequiredService<IMachineInterfaceConnector>();
+            var connector = context.RequestServices.GetRequiredService<IMachineInterfaceConnector<string>>();
             
             if (string.Equals(context.Request.Method, "PUT", StringComparison.OrdinalIgnoreCase))
             {
@@ -48,7 +49,7 @@ public class Startup
                     Account account;
                     try
                     {
-                        account = await session.TransactionBatch.ReadItemAsync<Account>(accountId);
+                        account = await session.TransactionContext.Batch().ReadItemAsync<Account>(accountId);
                     }
                     catch (CosmosException e)
                     {
@@ -72,7 +73,7 @@ public class Startup
                         return new StoredResponse(499, null);
                     }
 
-                    session.TransactionBatch.UpsertItem(account);
+                    session.TransactionContext.Batch().UpsertItem(account);
                     return new StoredResponse(200, null);
                 });
                 context.Response.StatusCode = response.Code;

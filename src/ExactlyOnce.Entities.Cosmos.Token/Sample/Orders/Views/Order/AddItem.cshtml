@@ -1,0 +1,28 @@
+﻿@model Orders.DomainModel.Item
+@{
+    ViewData["Title"] = "Add new item";
+}
+<h1>@ViewData["Title"]</h1>
+
+<p>Now you can add a new item to your order.</p>
+
+@using (Html.BeginForm("AddItem", "Order", FormMethod.Post))
+{
+<table>
+    <tr>
+        <td>Product: </td>
+        <td>@Html.TextBoxFor(m => m.Product)</td>
+    </tr>
+    <tr>
+        <td>Count: </td>
+        <td>@Html.TextBoxFor(m => m.Count)</td>
+    </tr>
+    <tr>
+        <td>Value: </td>
+        <td>@Html.TextBoxFor(m => m.Value)</td>
+    </tr>
+    <tr>
+        <td colspan="2"><input type="submit" value="Add item" /></td>
+    </tr>
+</table>
+}

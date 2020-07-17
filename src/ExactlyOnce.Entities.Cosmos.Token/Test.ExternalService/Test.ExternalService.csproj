@@ -8,8 +8,9 @@
     <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.8.0" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\ExactlyOnce.ClaimCheck.BlobStore\ExactlyOnce.ClaimCheck.BlobStore.csproj" />
-    <ProjectReference Include="..\ExactlyOnce.Entities.ClaimCheck.NServiceBus\ExactlyOnce.NServiceBus.Cosmos.csproj" />
+    <ProjectReference Include="..\ExactlyOnce.NServiceBus.Cosmos\ExactlyOnce.NServiceBus.Cosmos.csproj" />
+    <ProjectReference Include="..\ExactlyOnce.NServiceBus.Blob\ExactlyOnce.NServiceBus.Blob.csproj" />
+    <ProjectReference Include="..\ExactlyOnce.NServiceBus\ExactlyOnce.NServiceBus.csproj" />
     <ProjectReference Include="..\Test.Shared\Test.Shared.csproj" />
   </ItemGroup>
 </Project>

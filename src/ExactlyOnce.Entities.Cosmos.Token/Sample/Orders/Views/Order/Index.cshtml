@@ -1,0 +1,34 @@
+﻿@model Orders.DomainModel.Order
+@{
+    ViewData["Title"] = "Order";
+}
+
+@Html.ValidationSummary(false)
+
+<h1>@ViewData["Title"]  @Model.Id</h1>
+
+Customer: @Model.Customer
+Status: @Model.State
+
+<table>
+    <tr>
+        <th>Prod</th>
+        <th>Count</th>
+        <th>Value</th>
+    </tr>
+    @foreach (var item in Model.Items)
+    {
+        <tr>
+            <td>@item.Product</td>
+            <td>@item.Count</td>
+            <td>@item.Value</td>
+        </tr>
+    }
+</table>
+
+@Html.ActionLink("Add item", "AddItem", "Order", ViewContext.RouteData.Values)
+
+@using (Html.BeginForm("Submit", "Order", ViewContext.RouteData.Values, FormMethod.Post))
+{
+    <input type="submit" value="Submit order" />
+}

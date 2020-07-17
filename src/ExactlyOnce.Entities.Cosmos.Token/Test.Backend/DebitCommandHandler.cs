@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
-using ExactlyOnce.Entities.ClaimCheck.NServiceBus;
 using NServiceBus;
 
 namespace Test.Backend
@@ -19,7 +18,8 @@ namespace Test.Backend
                 ["debit-value"] = message.Change.ToString()
             };
 
-            await context.InvokeRest("http://localhost:58119/debit?rid={uniqueId}&account=" + message.AccountNumber, new FormUrlEncodedContent(content), new DebitCompleteCommand
+            await context.InvokeRest("http://localhost:58119/debit?rid={uniqueId}&account=" + message.AccountNumber, new FormUrlEncodedContent(content), 
+                new DebitCompleteCommand
             {
                 AccountNumber = message.AccountNumber
             });

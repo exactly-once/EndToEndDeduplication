@@ -1,7 +1,8 @@
-﻿using Azure.Storage.Blobs;
-using ExactlyOnce.ClaimCheck.BlobStore;
-using ExactlyOnce.Cosmos;
-using ExactlyOnce.Entities.ClaimCheck.NServiceBus;
+﻿using System.Linq;
+using Azure.Storage.Blobs;
+using ExactlyOnce.NServiceBus;
+using ExactlyOnce.NServiceBus.Blob;
+using ExactlyOnce.NServiceBus.Cosmos;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Hosting;
@@ -16,7 +17,7 @@ public class Program
         var client = new CosmosClient("AccountEndpoint=https://localhost:8081/;AccountKey=C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==", clientOptions);
         var appDataContainer = client.GetContainer("ExactlyOnce", "external");
 
-        #region EndpointConfiguration
+        var stateStore = new ApplicationStateStore(appDataContainer);
 
         var host = Host.CreateDefaultBuilder()
             .ConfigureWebHostDefaults(c => c.UseStartup<Startup>())
@@ -27,13 +28,11 @@ public class Program
                 endpointConfiguration.SendOnly();
                 return endpointConfiguration;
             })
-            .UseExactlyOnceWebMachineInterface(appDataContainer, 
-                new MachineWebInterfaceBlobRequestStore(new BlobContainerClient("UseDevelopmentStorage=true", "request-store"), "external-service-"),
-                new MachineWebInterfaceBlobResponseStore(new BlobContainerClient("UseDevelopmentStorage=true", "response-store"), "external-service-"),
-                new BlobMessageStore(new BlobContainerClient("UseDevelopmentStorage=true", "claim-check")))
+            .UseExactlyOnceWebMachineInterface(stateStore, 
+                new MachineWebInterfaceRequestStore(new BlobContainerClient("UseDevelopmentStorage=true", "request-store"), "external-service-"),
+                new MachineWebInterfaceResponseStore(new BlobContainerClient("UseDevelopmentStorage=true", "response-store"), "external-service-"),
+                new MessageStore(new BlobContainerClient("UseDevelopmentStorage=true", "claim-check")))
             .Build();
-
-        #endregion
 
         host.Run();
     }
