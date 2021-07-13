@@ -29,7 +29,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PaymentProvider.Contracts",
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orders.Backend", "Sample\Orders.Backend\Orders.Backend.csproj", "{E4EB602F-83D2-4D15-861E-EF2635C43B4B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Orders.DomainModel", "Sample\Orders.DomainModel\Orders.DomainModel.csproj", "{6217075E-2F8F-4164-A822-03FABCDD51F5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orders.DomainModel", "Sample\Orders.DomainModel\Orders.DomainModel.csproj", "{6217075E-2F8F-4164-A822-03FABCDD51F5}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ExactlyOnce.NServiceBus.Testing", "ExactlyOnce.NServiceBus.Testing\ExactlyOnce.NServiceBus.Testing.csproj", "{313D2434-2EFF-42D7-AD39-72E9D092DBA0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -89,6 +91,10 @@ Global
 		{6217075E-2F8F-4164-A822-03FABCDD51F5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6217075E-2F8F-4164-A822-03FABCDD51F5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6217075E-2F8F-4164-A822-03FABCDD51F5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{313D2434-2EFF-42D7-AD39-72E9D092DBA0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{313D2434-2EFF-42D7-AD39-72E9D092DBA0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{313D2434-2EFF-42D7-AD39-72E9D092DBA0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{313D2434-2EFF-42D7-AD39-72E9D092DBA0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

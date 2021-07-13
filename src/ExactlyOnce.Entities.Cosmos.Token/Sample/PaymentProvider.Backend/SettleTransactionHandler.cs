@@ -1,4 +1,5 @@
 ﻿using System.Threading.Tasks;
+using Microsoft.Extensions.Azure;
 using NServiceBus;
 using NServiceBus.Logging;
 using PaymentProvider.Contracts;

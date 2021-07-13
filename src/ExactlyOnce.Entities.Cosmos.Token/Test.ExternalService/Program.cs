@@ -17,7 +17,7 @@ public class Program
         var client = new CosmosClient("AccountEndpoint=https://localhost:8081/;AccountKey=C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==", clientOptions);
         var appDataContainer = client.GetContainer("ExactlyOnce", "external");
 
-        var stateStore = new ApplicationStateStore(appDataContainer);
+        var stateStore = new ApplicationStateStore(appDataContainer, "");
 
         var host = Host.CreateDefaultBuilder()
             .ConfigureWebHostDefaults(c => c.UseStartup<Startup>())

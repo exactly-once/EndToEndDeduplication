@@ -17,12 +17,6 @@ using PaymentProvider.Frontend.Models;
 
 namespace PaymentProvider.Frontend.Controllers
 {
-    //TODO
-    //public interface IExactlyOnceMachineInterfaceEndpoint<TPayload>
-    //{
-    //    Task<StoredResponse> Invoke(TPayload payload, IMachineInterfaceConnectorMessageSession context);
-    //}
-
     [ApiController]
     public class PaymentController : ControllerBase
     {
@@ -35,16 +29,7 @@ namespace PaymentProvider.Frontend.Controllers
             this.connector = connector;
         }
 
-        [HttpPut]
-        [Route("payment/authorize/{transactionId}")]
-        public async Task<IActionResult> AuthorizePut(string transactionId)
-        {
-            await connector.StoreRequest(transactionId, Request.Body);
-            return Ok();
-        }
-
-        [HttpPost]
-        [Route("payment/authorize/{transactionId}")]
+        [MachineInterface("payment/authorize/{transactionId}")]
         public async Task<IActionResult> AuthorizePost(string transactionId)
         {
             var result = await connector.ExecuteTransaction(transactionId,
@@ -57,41 +42,23 @@ namespace PaymentProvider.Frontend.Controllers
                     var amount = decimal.Parse(formCollection["Amount"].Single());
                     var customerId = formCollection["CustomerId"].Single();
 
+                    var partitionKey = customerId.Substring(0, 2);
+
                     return (new AuthorizeRequest
                     {
                         CustomerId = customerId,
                         TransactionId = transactionId,
                         Amount = amount
-                    }, customerId.Substring(0, 2));
+                    }, partitionKey);
                 }, 
                 async session =>
                 {
-                    Account account;
-                    try
-                    {
-                        account = await session.TransactionContext.Batch()
-                            .ReadItemAsync<Account>(session.Payload.CustomerId);
-                    }
-                    catch (CosmosException e)
-                    {
-                        if (e.StatusCode == HttpStatusCode.NotFound)
-                        {
-                            account = new Account
-                            {
-                                Number = session.Payload.CustomerId,
-                                Partition = session.Payload.CustomerId.Substring(0, 2),
-                                Balance = 0,
-                                Transactions = new List<Transaction>()
-                            };
-                        }
-                        else
-                        {
-                            throw new Exception("Error while loading account data", e);
-                        }
-                    }
+                    var account = await LoadOrCreateAccount(session).ConfigureAwait(false);
 
                     account.Balance -= session.Payload.Amount;
+
                     session.TransactionContext.Batch().UpsertItem(account);
+
                     await session.Send(new SettleTransaction
                     {
                         AccountNumber = account.Number,
@@ -108,12 +75,33 @@ namespace PaymentProvider.Frontend.Controllers
             return StatusCode(result.Code);
         }
 
-        [HttpDelete]
-        [Route("payment/authorize/{transactionId}")]
-        public async Task<IActionResult> AuthorizeDelete(string transactionId)
+        static async Task<Account> LoadOrCreateAccount(IMachineInterfaceConnectorMessageSession<AuthorizeRequest> session)
         {
-            await connector.DeleteResponse(transactionId);
-            return Ok();
+            Account account;
+            try
+            {
+                account = await session.TransactionContext.Batch()
+                    .ReadItemAsync<Account>(session.Payload.CustomerId);
+            }
+            catch (CosmosException e)
+            {
+                if (e.StatusCode == HttpStatusCode.NotFound)
+                {
+                    account = new Account
+                    {
+                        Number = session.Payload.CustomerId,
+                        Partition = session.Payload.CustomerId.Substring(0, 2),
+                        Balance = 0,
+                        Transactions = new List<Transaction>()
+                    };
+                }
+                else
+                {
+                    throw new Exception("Error while loading account data", e);
+                }
+            }
+
+            return account;
         }
     }
 }

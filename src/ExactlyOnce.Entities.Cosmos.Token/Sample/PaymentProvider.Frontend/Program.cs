@@ -1,13 +1,23 @@
+using System.IO;
+using System.Text;
 using Azure.Storage.Blobs;
 using ExactlyOnce.NServiceBus;
 using ExactlyOnce.NServiceBus.Blob;
 using ExactlyOnce.NServiceBus.Cosmos;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Formatters;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Binders;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using NServiceBus;
 using PaymentProvider.Contracts;
+using PaymentProvider.Frontend.Controllers;
 
 namespace PaymentProvider.Frontend
 {
@@ -30,7 +40,17 @@ namespace PaymentProvider.Frontend
             var stateStore = new ApplicationStateStore(appDataContainer, "Partition");
 
             return Host.CreateDefaultBuilder(args)
-                .ConfigureServices(collection => collection.AddSingleton(appDataContainer))
+                .ConfigureServices(collection =>
+                {
+                    collection.AddSingleton(appDataContainer);
+                    //collection.AddScoped<IMachineInterfaceConnectorMessageSession<string>>(provider =>
+                    //{
+                    //    var connector = provider.GetRequiredService<IMachineInterfaceConnector<string>>();
+                    //    connector.ExecuteTransaction()
+                    //});
+                    //collection.TryAddEnumerable(
+                    //    ServiceDescriptor.Transient<IConfigureOptions<MvcOptions>, MySetup>());
+                })
                 .UseNServiceBus(context =>
                 {
                     var endpointConfiguration = new EndpointConfiguration("Samples.ExactlyOnce.PaymentProvider.Frontend");
@@ -45,4 +65,40 @@ namespace PaymentProvider.Frontend
                     new MachineWebInterfaceResponseStore(requestResponseStoreClient, "response-"), messageStore);
         }
     }
+
+    //public class MySetup : IConfigureOptions<MvcOptions>, IPostConfigureOptions<MvcOptions>
+    //{
+    //    public void Configure(MvcOptions options)
+    //    {
+    //        options.ModelBinderProviders.Add(new StoredRequestModelBinderProvider(options.InputFormatters);
+    //    }
+
+    //    public void PostConfigure(string name, MvcOptions options)
+    //    {
+    //        throw new System.NotImplementedException();
+    //    }
+    //}
+
+    //public class StoredRequestModelBinderProvider : IModelBinderProvider
+    //{
+    //    readonly FormatterCollection<IInputFormatter> formatters;
+
+    //    public StoredRequestModelBinderProvider(FormatterCollection<IInputFormatter> formatters)
+    //    {
+    //        this.formatters = formatters;
+    //    }
+
+    //    public IModelBinder GetBinder(ModelBinderProviderContext context)
+    //    {
+    //        return new BodyModelBinder(formatters, new D());
+    //    }
+    //}
+
+    //public class D : IHttpRequestStreamReaderFactory
+    //{
+    //    public TextReader CreateReader(Stream stream, Encoding encoding)
+    //    {
+    //        throw new System.NotImplementedException();
+    //    }
+    //}
 }
