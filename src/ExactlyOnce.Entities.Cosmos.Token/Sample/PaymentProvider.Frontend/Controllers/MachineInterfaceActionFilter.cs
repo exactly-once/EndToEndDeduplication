@@ -9,6 +9,8 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace PaymentProvider.Frontend.Controllers
 {
+    using Microsoft.AspNetCore.Http;
+
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true)]
     public class MachineInterfaceAttribute : Attribute, IFilterFactory, IActionHttpMethodProvider, IRouteTemplateProvider
     {

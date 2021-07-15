@@ -17,9 +17,12 @@ using PaymentProvider.Frontend.Models;
 
 namespace PaymentProvider.Frontend.Controllers
 {
+    using Newtonsoft.Json;
+
     [ApiController]
     public class PaymentController : ControllerBase
     {
+        static readonly JsonSerializer serializer = new JsonSerializer();
         readonly ILogger<PaymentController> logger;
         readonly IMachineInterfaceConnector<string> connector;
 
@@ -35,22 +38,14 @@ namespace PaymentProvider.Frontend.Controllers
             var result = await connector.ExecuteTransaction(transactionId,
                 async payload =>
                 {
-                    var formReader = new FormReader(payload);
-                    var values = await formReader.ReadFormAsync().ConfigureAwait(false);
-                    var formCollection = new FormCollection(values);
-
-                    var amount = decimal.Parse(formCollection["Amount"].Single());
-                    var customerId = formCollection["CustomerId"].Single();
-
-                    var partitionKey = customerId.Substring(0, 2);
-
-                    return (new AuthorizeRequest
+                    using (var streamReader = new StreamReader(payload))
+                    using (var reader = new JsonTextReader(streamReader))
                     {
-                        CustomerId = customerId,
-                        TransactionId = transactionId,
-                        Amount = amount
-                    }, partitionKey);
-                }, 
+                        var request = serializer.Deserialize<AuthorizeRequest>(reader);
+                        var partitionKey = request.CustomerId;
+                        return (request, partitionKey);
+                    }
+                },
                 async session =>
                 {
                     var account = await LoadOrCreateAccount(session).ConfigureAwait(false);

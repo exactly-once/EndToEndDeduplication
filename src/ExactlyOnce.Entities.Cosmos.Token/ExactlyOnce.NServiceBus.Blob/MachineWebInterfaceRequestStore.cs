@@ -19,9 +19,13 @@ namespace ExactlyOnce.NServiceBus.Blob
             this.prefix = prefix;
         }
 
-        public Task Create(string requestId, Stream requestContent)
+        public async Task Create(string requestId, Stream requestContent)
         {
-            return containerClient.GetBlobClient(BlobName(requestId)).UploadAsync(requestContent);
+            //var textReader = new StreamReader(requestContent);
+            //var json = await textReader.ReadToEndAsync();
+
+            await containerClient.GetBlobClient(BlobName(requestId)).UploadAsync(requestContent);
+
         }
 
         public Task EnsureDeleted(string requestId)

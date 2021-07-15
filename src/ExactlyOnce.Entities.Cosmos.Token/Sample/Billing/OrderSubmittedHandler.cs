@@ -9,19 +9,32 @@ using NServiceBus.Logging;
 
 namespace Billing
 {
+    using System.Text;
+    using Newtonsoft.Json;
+
+    public class AuthorizeRequest
+    {
+        public string TransactionId { get; set; }
+        public string CustomerId { get; set; }
+        public decimal Amount { get; set; }
+    }
+
     public class OrderSubmittedHandler : IHandleMessages<BillCustomer>
     {
         static ILog log = LogManager.GetLogger<OrderSubmittedHandler>();
+        static readonly UTF8Encoding Utf8Encoding = new UTF8Encoding(false);
 
         public async Task Handle(BillCustomer message, IMessageHandlerContext context)
         {
             var total = message.Items.Sum(x => x.Value);
-            var requestBody = new Dictionary<string, string>
+
+            var request = new AuthorizeRequest
             {
-                ["CustomerId"] = message.CustomerId, 
-                ["Amount"] = total.ToString("F")
+                Amount = total,
+                CustomerId = message.CustomerId
             };
-            var content = new FormUrlEncodedContent(requestBody);
+
+            var content = CreateHttpContent(request);
 
             log.Info("Invoking payment provider API");
 
@@ -31,6 +44,11 @@ namespace Billing
                     CustomerId = message.CustomerId,
                     OrderId = message.OrderId
                 });
+        }
+
+        static HttpContent CreateHttpContent(AuthorizeRequest request)
+        {
+            return new StringContent(JsonConvert.SerializeObject(request), Utf8Encoding, "application/json");
         }
     }
 }
