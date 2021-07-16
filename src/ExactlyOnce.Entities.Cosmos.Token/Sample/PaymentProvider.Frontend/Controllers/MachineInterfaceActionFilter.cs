@@ -70,7 +70,7 @@ namespace PaymentProvider.Frontend.Controllers
                 if (string.Equals(context.HttpContext.Request.Method, "put", StringComparison.OrdinalIgnoreCase))
                 {
                     var transactionId = (string)context.RouteData.Values["transactionId"];
-                    await connector.StoreRequest(transactionId, context.HttpContext.Request.Body).ConfigureAwait(false);
+                    await connector.StoreRequest(transactionId, context.HttpContext.Request.BodyReader.AsStream()).ConfigureAwait(false);
 
                     context.Result = new OkResult();
                     return;

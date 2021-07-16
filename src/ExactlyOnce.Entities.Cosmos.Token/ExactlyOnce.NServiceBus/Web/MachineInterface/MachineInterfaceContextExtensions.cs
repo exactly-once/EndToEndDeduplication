@@ -3,7 +3,6 @@ using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
 using ExactlyOnce.Core;
-using ExactlyOnce.NServiceBus;
 using ExactlyOnce.NServiceBus.Messaging.MachineWebInterface;
 
 // ReSharper disable once CheckNamespace

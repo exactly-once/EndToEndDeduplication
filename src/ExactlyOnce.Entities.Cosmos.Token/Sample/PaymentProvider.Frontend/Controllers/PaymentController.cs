@@ -42,7 +42,7 @@ namespace PaymentProvider.Frontend.Controllers
                     using (var reader = new JsonTextReader(streamReader))
                     {
                         var request = serializer.Deserialize<AuthorizeRequest>(reader);
-                        var partitionKey = request.CustomerId;
+                        var partitionKey = request.CustomerId.Substring(0,2);
                         return (request, partitionKey);
                     }
                 },
