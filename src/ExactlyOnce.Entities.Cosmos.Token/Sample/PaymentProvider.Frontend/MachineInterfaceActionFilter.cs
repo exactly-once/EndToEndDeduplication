@@ -7,10 +7,8 @@ using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace PaymentProvider.Frontend.Controllers
+namespace PaymentProvider.Frontend
 {
-    using Microsoft.AspNetCore.Http;
-
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true)]
     public class MachineInterfaceAttribute : Attribute, IFilterFactory, IActionHttpMethodProvider, IRouteTemplateProvider
     {

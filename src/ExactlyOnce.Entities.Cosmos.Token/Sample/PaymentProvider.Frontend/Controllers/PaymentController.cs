@@ -1,13 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using ExactlyOnce.NServiceBus;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using NServiceBus;
@@ -35,17 +32,8 @@ namespace PaymentProvider.Frontend.Controllers
         [MachineInterface("payment/authorize/{transactionId}")]
         public async Task<IActionResult> AuthorizePost(string transactionId)
         {
-            var result = await connector.ExecuteTransaction(transactionId,
-                async payload =>
-                {
-                    using (var streamReader = new StreamReader(payload))
-                    using (var reader = new JsonTextReader(streamReader))
-                    {
-                        var request = serializer.Deserialize<AuthorizeRequest>(reader);
-                        var partitionKey = request.CustomerId.Substring(0,2);
-                        return (request, partitionKey);
-                    }
-                },
+            var result = await connector.ExecuteTransaction<AuthorizeRequest, string>(transactionId,
+                payload => payload.CustomerId.Substring(0, 2),
                 async session =>
                 {
                     var account = await LoadOrCreateAccount(session).ConfigureAwait(false);
@@ -63,6 +51,7 @@ namespace PaymentProvider.Frontend.Controllers
 
                     return new StoredResponse(200, null);
                 });
+
             if (result.Body != null)
             {
                 Response.Body = result.Body;
