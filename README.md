@@ -28,3 +28,11 @@ Apart from the fact that it does not give us 100% duplicate-free guarantee, the 
 An alternative approach is to reverse the logic and use one-time processing tokens. As long as the token exists, the message can be processed. As part of marking the message as processed (see previous section), the token is removed so when a duplicate comes in, it is going to be ignored.
 
 
+## Primary storage and side effects
+
+All deduplication algorithms, regardless how they handle long-term memory of processed messages, need to initially mark a message as processed in the business data store as part of the actual business transaction. We call the data store that holds the business data and the short-term deduplication data **primary storage**. Note that some old algoritms use the primary storage also as long-term memory but this approach has some obvious downsides e.g. putting additional pressure on that resource.
+
+In addition to updating the primary storage, a deduplication algorithm can have **side effects**. The simplest examples of a side effects include generated HTTP response when the algorithm is applied to HTTP endpoint or outgoing messages if the algorithm is applied to asynchronous message processing. It can also be a blob containing a PDF document that gets created during the transaction.
+
+Side effects have two-stage lifecycle. First, they are generated during the business transaction. Before each side effects is *generated*, its ID is recorded in the deduplication state (stored in the primary storage). At this stage the side effect can't yet be visible to the outside world. If a given attempt is later rolled back, the generated side effect is deleted. Once the business transaction commits and the incoming signal is marked as processed, the side effects associated with a successful attempt are *published* and the ones associated with other attempts are deleted to avoid generating garbage in the database.
+
