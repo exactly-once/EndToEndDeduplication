@@ -36,3 +36,14 @@ In addition to updating the primary storage, a deduplication algorithm can have 
 
 Side effects have two-stage lifecycle. First, they are generated during the business transaction. Before each side effects is *generated*, its ID is recorded in the deduplication state (stored in the primary storage). At this stage the side effect can't yet be visible to the outside world. If a given attempt is later rolled back, the generated side effect is deleted. Once the business transaction commits and the incoming signal is marked as processed, the side effects associated with a successful attempt are *published* and the ones associated with other attempts are deleted to avoid generating garbage in the database.
 
+## Architecture
+
+Architecture is about the big picture. This is about end-to-end deduplication so let's describe what the *end* means here. The environment consists of multiple software systems, each managed by an independent (or autonomous) organization. These systems share no resources. They can be deployed to different hosting environments and build on different platforms. Systems communicate via HTTP in two ways:
+ - retrieving information stored in another system
+ - triggering a state change in another system
+ 
+### Services
+
+Systems are broken down into services. Services form the middle level of the hieararchy. 
+
+
