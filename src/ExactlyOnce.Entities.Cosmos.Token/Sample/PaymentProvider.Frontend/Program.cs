@@ -21,6 +21,9 @@ using PaymentProvider.Frontend.Controllers;
 
 namespace PaymentProvider.Frontend
 {
+    using Microsoft.AspNetCore.Http;
+    using Models;
+
     public class Program
     {
         public static void Main(string[] args)
@@ -43,13 +46,8 @@ namespace PaymentProvider.Frontend
                 .ConfigureServices(collection =>
                 {
                     collection.AddSingleton(appDataContainer);
-                    //collection.AddScoped<IMachineInterfaceConnectorMessageSession<string>>(provider =>
-                    //{
-                    //    var connector = provider.GetRequiredService<IMachineInterfaceConnector<string>>();
-                    //    connector.ExecuteTransaction()
-                    //});
-                    //collection.TryAddEnumerable(
-                    //    ServiceDescriptor.Transient<IConfigureOptions<MvcOptions>, MySetup>());
+                    collection.TryAddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+                    collection.AddSingleton<IMachineInterfaceConnectorMessageSession<AuthorizeRequest>, ContextMachineInterfaceConnectorMessageSession<AuthorizeRequest>>();
                 })
                 .UseNServiceBus(context =>
                 {

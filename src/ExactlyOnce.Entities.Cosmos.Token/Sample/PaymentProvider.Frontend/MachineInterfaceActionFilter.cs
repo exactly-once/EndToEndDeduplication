@@ -9,6 +9,9 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace PaymentProvider.Frontend
 {
+    using Contracts;
+    using Models;
+
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true)]
     public class MachineInterfaceAttribute : Attribute, IFilterFactory, IActionHttpMethodProvider, IRouteTemplateProvider
     {
@@ -69,7 +72,6 @@ namespace PaymentProvider.Frontend
                 {
                     var transactionId = (string)context.RouteData.Values["transactionId"];
                     await connector.StoreRequest(transactionId, context.HttpContext.Request.BodyReader.AsStream()).ConfigureAwait(false);
-
                     context.Result = new OkResult();
                     return;
                 }
@@ -83,7 +85,25 @@ namespace PaymentProvider.Frontend
                     return;
                 }
 
-                await next().ConfigureAwait(false);
+                if (string.Equals(context.HttpContext.Request.Method, "post", StringComparison.OrdinalIgnoreCase))
+                {
+                    var transactionId = (string)context.RouteData.Values["transactionId"];
+                    var result = await connector.ExecuteTransaction<AuthorizeRequest, string>(transactionId,
+                        payload => payload.CustomerId.Substring(0, 2),
+                        async session =>
+                        {
+                            context.HttpContext.Items.Add("session", session);
+
+                            var resultContext = await next().ConfigureAwait(false);
+
+                            var generatedResult = (StatusCodeResult)resultContext.Result;
+
+                            return new StoredResponse(generatedResult.StatusCode, null);
+                        });
+
+                    context.Result = new StatusCodeResult(result.Code);
+                    return;
+                }
             }
         }
 

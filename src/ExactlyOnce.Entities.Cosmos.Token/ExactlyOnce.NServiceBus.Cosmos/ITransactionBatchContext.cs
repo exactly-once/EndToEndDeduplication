@@ -15,6 +15,11 @@ namespace ExactlyOnce.NServiceBus.Cosmos
             ItemRequestOptions requestOptions = null,
             CancellationToken cancellationToken = default(CancellationToken));
 
+        Task<T> TryReadItemAsync<T>(
+            string id,
+            ItemRequestOptions requestOptions = null,
+            CancellationToken cancellationToken = default(CancellationToken));
+
         /// <summary>
         /// Application state container. Only for querying data.
         /// </summary>

@@ -4,6 +4,9 @@ using Microsoft.Azure.Cosmos;
 
 namespace ExactlyOnce.NServiceBus.Cosmos
 {
+    using System;
+    using System.Net;
+
     class TransactionBatchContext : ITransactionBatchContext
     {
         readonly PartitionKey partitionKey;
@@ -35,6 +38,26 @@ namespace ExactlyOnce.NServiceBus.Cosmos
             CancellationToken cancellationToken = default(CancellationToken))
         {
             return Container.ReadItemAsync<T>(id, partitionKey, requestOptions, cancellationToken);
+        }
+
+        public async Task<T> TryReadItemAsync<T>(string id, ItemRequestOptions requestOptions = null, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            try
+            {
+               var result = await ReadItemAsync<T>(id, requestOptions, cancellationToken);
+               return result.Resource;
+            }
+            catch (CosmosException e)
+            {
+                if (e.StatusCode == HttpStatusCode.NotFound)
+                {
+                    return default;
+                }
+                else
+                {
+                    throw new Exception("Error while loading account data", e);
+                }
+            }
         }
 
         public Container Container { get; }

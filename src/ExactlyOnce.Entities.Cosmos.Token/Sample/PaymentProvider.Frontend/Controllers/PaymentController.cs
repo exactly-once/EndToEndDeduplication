@@ -1,12 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Net;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using ExactlyOnce.NServiceBus;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.Cosmos;
-using Microsoft.Extensions.Logging;
 using NServiceBus;
 using PaymentProvider.Contracts;
 using PaymentProvider.DomainModel;
@@ -14,78 +9,41 @@ using PaymentProvider.Frontend.Models;
 
 namespace PaymentProvider.Frontend.Controllers
 {
-    using Newtonsoft.Json;
-
     [ApiController]
     public class PaymentController : ControllerBase
     {
-        static readonly JsonSerializer serializer = new JsonSerializer();
-        readonly ILogger<PaymentController> logger;
-        readonly IMachineInterfaceConnector<string> connector;
+        readonly IMachineInterfaceConnectorMessageSession<AuthorizeRequest> session;
 
-        public PaymentController(ILogger<PaymentController> logger, IMachineInterfaceConnector<string> connector)
+        public PaymentController(IMachineInterfaceConnectorMessageSession<AuthorizeRequest> session)
         {
-            this.logger = logger;
-            this.connector = connector;
+            this.session = session;
         }
 
         [MachineInterface("payment/authorize/{transactionId}")]
-        public async Task<IActionResult> AuthorizePost(string transactionId)
+        public async Task<IActionResult> Authorize(string transactionId)
         {
-            var result = await connector.ExecuteTransaction<AuthorizeRequest, string>(transactionId,
-                payload => payload.CustomerId.Substring(0, 2),
-                async session =>
+            var account = await session.TransactionContext.Batch()
+                .TryReadItemAsync<Account>(session.Payload.CustomerId).ConfigureAwait(false)
+                ?? new Account
                 {
-                    var account = await LoadOrCreateAccount(session).ConfigureAwait(false);
+                    Number = session.Payload.CustomerId,
+                    Partition = session.Payload.CustomerId.Substring(0, 2),
+                    Balance = 0,
+                    Transactions = new List<Transaction>()
+                };
 
-                    account.Balance -= session.Payload.Amount;
+            account.Balance -= session.Payload.Amount;
 
-                    session.TransactionContext.Batch().UpsertItem(account);
+            session.TransactionContext.Batch().UpsertItem(account);
 
-                    await session.Send(new SettleTransaction
-                    {
-                        AccountNumber = account.Number,
-                        Amount = session.Payload.Amount,
-                        TransactionId = transactionId
-                    });
-
-                    return new StoredResponse(200, null);
-                });
-
-            if (result.Body != null)
+            await session.Send(new SettleTransaction
             {
-                Response.Body = result.Body;
-            }
-            return StatusCode(result.Code);
-        }
+                AccountNumber = account.Number,
+                Amount = session.Payload.Amount,
+                TransactionId = transactionId
+            });
 
-        static async Task<Account> LoadOrCreateAccount(IMachineInterfaceConnectorMessageSession<AuthorizeRequest> session)
-        {
-            Account account;
-            try
-            {
-                account = await session.TransactionContext.Batch()
-                    .ReadItemAsync<Account>(session.Payload.CustomerId);
-            }
-            catch (CosmosException e)
-            {
-                if (e.StatusCode == HttpStatusCode.NotFound)
-                {
-                    account = new Account
-                    {
-                        Number = session.Payload.CustomerId,
-                        Partition = session.Payload.CustomerId.Substring(0, 2),
-                        Balance = 0,
-                        Transactions = new List<Transaction>()
-                    };
-                }
-                else
-                {
-                    throw new Exception("Error while loading account data", e);
-                }
-            }
-
-            return account;
+            return new OkResult();
         }
     }
 }
