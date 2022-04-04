@@ -23,7 +23,7 @@ namespace ExactlyOnce.NServiceBus.Cosmos
             });
         }
 
-        public ITransactionRecordContainer Create(string partitionKey)
+        public ITransactionRecordContainer<string> Create(string partitionKey)
         {
             return new TransactionRecordContainer(applicationStateContainer, partitionKey, serializer);
         }

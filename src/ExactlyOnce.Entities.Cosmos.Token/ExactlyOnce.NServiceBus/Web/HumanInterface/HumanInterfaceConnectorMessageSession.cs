@@ -68,7 +68,7 @@ namespace ExactlyOnce.NServiceBus.Web.HumanInterface
             var messagesToCheck = pendingOperations.Operations.Select(o => o.ToCheck()).ToArray();
 
             await TransactionContext.AddSideEffects(messageRecords).ConfigureAwait(false);
-            await messageStore.Create(messagesToCheck).ConfigureAwait(false);
+            await messageStore.Create(requestId, messagesToCheck).ConfigureAwait(false);
         }
 
     }

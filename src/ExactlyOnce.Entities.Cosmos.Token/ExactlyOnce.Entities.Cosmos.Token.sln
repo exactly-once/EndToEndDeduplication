@@ -33,6 +33,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orders.DomainModel", "Sampl
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ExactlyOnce.NServiceBus.Testing", "ExactlyOnce.NServiceBus.Testing\ExactlyOnce.NServiceBus.Testing.csproj", "{313D2434-2EFF-42D7-AD39-72E9D092DBA0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{D0A657C3-7E1B-42E0-9508-9E1BEC87183A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -95,6 +97,10 @@ Global
 		{313D2434-2EFF-42D7-AD39-72E9D092DBA0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{313D2434-2EFF-42D7-AD39-72E9D092DBA0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{313D2434-2EFF-42D7-AD39-72E9D092DBA0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D0A657C3-7E1B-42E0-9508-9E1BEC87183A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D0A657C3-7E1B-42E0-9508-9E1BEC87183A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D0A657C3-7E1B-42E0-9508-9E1BEC87183A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D0A657C3-7E1B-42E0-9508-9E1BEC87183A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

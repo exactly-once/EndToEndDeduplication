@@ -2,8 +2,8 @@
 
 namespace ExactlyOnce.NServiceBus
 {
-    public interface IApplicationStateStore<in T>
+    public interface IApplicationStateStore<T>
     {
-        ITransactionRecordContainer Create(T partitionKey);
+        ITransactionRecordContainer<T> Create(T partitionKey);
     }
 }

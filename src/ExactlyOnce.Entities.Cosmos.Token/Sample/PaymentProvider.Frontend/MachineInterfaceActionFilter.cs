@@ -9,7 +9,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace PaymentProvider.Frontend
 {
-    using Contracts;
     using Models;
 
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true)]

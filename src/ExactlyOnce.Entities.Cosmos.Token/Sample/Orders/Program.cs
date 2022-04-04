@@ -34,7 +34,11 @@ namespace Orders
                 .UseNServiceBus(context =>
                 {
                     var endpointConfiguration = new EndpointConfiguration("Samples.ExactlyOnce.Orders");
-                    var routing = endpointConfiguration.UseTransport<LearningTransport>().Routing();
+                    endpointConfiguration.EnableInstallers();
+                    var transport = endpointConfiguration.UseTransport<RabbitMQTransport>();
+                    transport.ConnectionString("host=localhost");
+                    transport.UseConventionalRoutingTopology();
+                    var routing = transport.Routing();
                     routing.RouteToEndpoint(typeof(BillCustomer), "Samples.ExactlyOnce.Billing");
                     endpointConfiguration.SendOnly();
                     return endpointConfiguration;

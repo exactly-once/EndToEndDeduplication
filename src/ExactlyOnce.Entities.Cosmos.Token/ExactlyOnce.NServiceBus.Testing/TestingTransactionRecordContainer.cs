@@ -5,16 +5,23 @@ using ExactlyOnce.Core;
 
 namespace ExactlyOnce.NServiceBus.Testing
 {
-    public class TestingTransactionRecordContainer : ITransactionRecordContainer
+    public class TestingTransactionRecordContainer<T> : ITransactionRecordContainer<T>
     {
-        ITransactionRecordContainer impl;
+        ITransactionRecordContainer<T> impl;
+        readonly IChaosMonkey chaosMonkey;
 
-        public TestingTransactionRecordContainer(ITransactionRecordContainer impl)
+        public TestingTransactionRecordContainer(ITransactionRecordContainer<T> impl, IChaosMonkey chaosMonkey)
         {
             this.impl = impl;
+            this.chaosMonkey = chaosMonkey;
         }
 
-        public string UniqueIdentifier => impl.UniqueIdentifier;
+        public T UniqueIdentifier => impl.UniqueIdentifier;
+
+        public object Unwrap()
+        {
+            return impl;
+        }
 
         public string MessageId => impl.MessageId;
 
@@ -31,26 +38,31 @@ namespace ExactlyOnce.NServiceBus.Testing
 
         public Task AddSideEffect(SideEffectRecord sideEffectRecord)
         {
+            chaosMonkey.AddSideEffect(UniqueIdentifier.ToString());
             return impl.AddSideEffect(sideEffectRecord);
         }
 
         public Task AddSideEffects(List<SideEffectRecord> sideEffectRecords)
         {
+            chaosMonkey.AddSideEffect(UniqueIdentifier.ToString());
             return impl.AddSideEffects(sideEffectRecords);
         }
 
         public Task BeginStateTransition()
         {
+            chaosMonkey.BeginStateTransition(UniqueIdentifier.ToString());
             return impl.BeginStateTransition();
         }
 
         public Task CommitStateTransition(string messageId, Guid attemptId)
         {
+            chaosMonkey.CommitStateTransition(UniqueIdentifier.ToString());
             return impl.CommitStateTransition(messageId, attemptId);
         }
 
         public Task ClearTransactionState()
         {
+            chaosMonkey.ClearTransactionState(UniqueIdentifier.ToString());
             return impl.ClearTransactionState();
         }
     }

@@ -10,7 +10,7 @@ namespace NServiceBus
     {
         public static ITransactionBatchContext Batch(this ITransactionContext transactionContext)
         {
-            var recordContainer = (TransactionRecordContainer)transactionContext.TransactionRecordContainer;
+            var recordContainer = (TransactionRecordContainer)transactionContext.TransactionRecordContainer.Unwrap();
             return recordContainer.BatchContext;
         }
     }

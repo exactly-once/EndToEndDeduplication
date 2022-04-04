@@ -28,7 +28,11 @@ namespace Billing
                 .UseNServiceBus(context =>
                 {
                     var endpointConfiguration = new EndpointConfiguration("Samples.ExactlyOnce.Billing");
-                    var routing = endpointConfiguration.UseTransport<LearningTransport>().Routing();
+                    endpointConfiguration.EnableInstallers();
+                    var transport = endpointConfiguration.UseTransport<RabbitMQTransport>();
+                    transport.ConnectionString("host=localhost");
+                    transport.UseConventionalRoutingTopology();
+                    var routing = transport.Routing();
 
                     routing.RouteToEndpoint(typeof(BillingSucceeded), "Samples.ExactlyOnce.Orders.Backend");
                     routing.RouteToEndpoint(typeof(BillingFailed), "Samples.ExactlyOnce.Orders.Backend");

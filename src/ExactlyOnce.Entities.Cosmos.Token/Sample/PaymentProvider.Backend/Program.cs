@@ -28,7 +28,11 @@ namespace PaymentProvider.Backend
                 .UseNServiceBus(context =>
                 {
                     var endpointConfiguration = new EndpointConfiguration("Samples.ExactlyOnce.PaymentProvider.Backend");
-                    var routing = endpointConfiguration.UseTransport<LearningTransport>().Routing();
+                    endpointConfiguration.EnableInstallers();
+                    var transport = endpointConfiguration.UseTransport<RabbitMQTransport>();
+                    transport.ConnectionString("host=localhost");
+                    transport.UseConventionalRoutingTopology();
+                    var routing = transport.Routing();
 
                     var settings = endpointConfiguration.UseExactlyOnce(stateStore, messageStore);
                     settings.MapMessage<SettleTransaction>((message, headers) => message.AccountNumber.Substring(0, 2));

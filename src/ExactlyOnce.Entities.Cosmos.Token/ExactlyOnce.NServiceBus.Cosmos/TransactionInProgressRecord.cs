@@ -2,6 +2,8 @@
 
 namespace ExactlyOnce.NServiceBus.Cosmos
 {
+    using System;
+
     public class TransactionInProgressRecord
     {
         [JsonProperty("id")]
@@ -9,5 +11,6 @@ namespace ExactlyOnce.NServiceBus.Cosmos
         public string EntityPartitionKey { get; set; }
         [JsonProperty("_etag")]
         public string Etag;
+        public DateTimeOffset StartedAt { get; set; }
     }
 }

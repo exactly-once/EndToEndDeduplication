@@ -5,11 +5,11 @@ using ExactlyOnce.Core;
 
 namespace ExactlyOnce.NServiceBus.Web.HumanInterface
 {
-    class TransactionInProgressSideEffectHandler : ISideEffectsHandler
+    class TransactionInProgressSideEffectHandler<TPartition> : ISideEffectsHandler
     {
-        readonly ITransactionInProgressStore transactionInProgressStore;
+        readonly ITransactionInProgressStore<TPartition> transactionInProgressStore;
 
-        public TransactionInProgressSideEffectHandler(ITransactionInProgressStore transactionInProgressStore)
+        public TransactionInProgressSideEffectHandler(ITransactionInProgressStore<TPartition> transactionInProgressStore)
         {
             this.transactionInProgressStore = transactionInProgressStore;
         }

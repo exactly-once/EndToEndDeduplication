@@ -1,20 +1,21 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
-  <PropertyGroup>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>netcoreapp3.1</TargetFramework>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="NServiceBus.Extensions.Hosting" Version="1.*" />
-    <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.8.0" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="NServiceBus.RabbitMQ" Version="6.*" />
+		<PackageReference Include="NServiceBus.Extensions.Hosting" Version="1.*" />
+		<PackageReference Include="Microsoft.Azure.Cosmos" Version="3.24.0" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\ExactlyOnce.NServiceBus.Blob\ExactlyOnce.NServiceBus.Blob.csproj" />
-    <ProjectReference Include="..\..\ExactlyOnce.NServiceBus.Cosmos\ExactlyOnce.NServiceBus.Cosmos.csproj" />
-    <ProjectReference Include="..\..\ExactlyOnce.NServiceBus\ExactlyOnce.NServiceBus.csproj" />
-    <ProjectReference Include="..\PaymentProvider.Contracts\PaymentProvider.Contracts.csproj" />
-    <ProjectReference Include="..\PaymentProvider.DomainModel\PaymentProvider.DomainModel.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\..\ExactlyOnce.NServiceBus.Blob\ExactlyOnce.NServiceBus.Blob.csproj" />
+		<ProjectReference Include="..\..\ExactlyOnce.NServiceBus.Cosmos\ExactlyOnce.NServiceBus.Cosmos.csproj" />
+		<ProjectReference Include="..\..\ExactlyOnce.NServiceBus\ExactlyOnce.NServiceBus.csproj" />
+		<ProjectReference Include="..\PaymentProvider.Contracts\PaymentProvider.Contracts.csproj" />
+		<ProjectReference Include="..\PaymentProvider.DomainModel\PaymentProvider.DomainModel.csproj" />
+	</ItemGroup>
 
 </Project>

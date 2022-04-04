@@ -10,7 +10,7 @@ using Newtonsoft.Json;
 
 namespace ExactlyOnce.NServiceBus.Cosmos
 {
-    class TransactionRecordContainer : ITransactionRecordContainer
+    class TransactionRecordContainer : ITransactionRecordContainer<string>
     {
         static readonly Encoding DefaultEncoding = new UTF8Encoding(false, true);
         const string TransactionEntityId = "_transaction";
@@ -34,6 +34,11 @@ namespace ExactlyOnce.NServiceBus.Cosmos
         }
 
         public string UniqueIdentifier => partitionId;
+        public object Unwrap()
+        {
+            return this;
+        }
+
         public string MessageId => value.MessageId;
         public Guid AttemptId
         {

@@ -34,13 +34,8 @@ namespace ExactlyOnce.NServiceBus.Blob
         {
             try
             {
-                var response = await containerClient.GetBlobClient(id).DownloadAsync().ConfigureAwait(false);
-                var buffer = new byte[response.Value.ContentLength];
-                using (var reader = new BinaryReader(response.Value.Content))
-                {
-                    reader.Read(buffer, 0, buffer.Length);
-                }
-                return buffer;
+                var response = await containerClient.GetBlobClient(id).DownloadContentAsync().ConfigureAwait(false);
+                return response.Value.Content.ToArray();
             }
             catch (RequestFailedException e)
             {
@@ -58,7 +53,7 @@ namespace ExactlyOnce.NServiceBus.Blob
             return response.Value;
         }
 
-        public Task Create(Message[] messages)
+        public Task Create(string sourceId, Message[] messages)
         {
             var tasks = messages.Select(async m =>
             {

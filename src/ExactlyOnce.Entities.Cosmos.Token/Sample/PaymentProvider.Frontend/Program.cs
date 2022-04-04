@@ -53,7 +53,11 @@ namespace PaymentProvider.Frontend
                 {
                     var endpointConfiguration = new EndpointConfiguration("Samples.ExactlyOnce.PaymentProvider.Frontend");
                     endpointConfiguration.SendOnly();
-                    var routing = endpointConfiguration.UseTransport<LearningTransport>().Routing();
+                    endpointConfiguration.EnableInstallers();
+                    var transport = endpointConfiguration.UseTransport<RabbitMQTransport>();
+                    transport.ConnectionString("host=localhost");
+                    transport.UseConventionalRoutingTopology();
+                    var routing = transport.Routing();
                     routing.RouteToEndpoint(typeof(SettleTransaction), "Samples.ExactlyOnce.PaymentProvider.Backend");
                     return endpointConfiguration;
                 })

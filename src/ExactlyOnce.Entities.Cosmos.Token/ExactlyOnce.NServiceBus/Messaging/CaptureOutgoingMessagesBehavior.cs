@@ -29,7 +29,7 @@ namespace ExactlyOnce.NServiceBus.Messaging
             var messagesToCheck = pendingOperations.Operations.Select(o => o.ToCheck()).ToArray();
 
             await transaction.AddSideEffects(messageRecords).ConfigureAwait(false);
-            await messageStore.Create(messagesToCheck).ConfigureAwait(false);
+            await messageStore.Create(context.MessageId, messagesToCheck).ConfigureAwait(false);
         }
     }
 }

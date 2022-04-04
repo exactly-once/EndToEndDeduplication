@@ -2,9 +2,12 @@
 
 namespace ExactlyOnce.NServiceBus.Web.HumanInterface
 {
-    public interface ITransactionInProgressStore
+    using System.Collections.Generic;
+
+    public interface ITransactionInProgressStore<TPartition>
     {
-        Task BeginTransaction(string transactionId, string partitionKey);
+        Task BeginTransaction(string transactionId, TPartition partitionKey);
         Task CompleteTransaction(string transactionId);
+        Task<IEnumerable<TransactionInProgress<TPartition>>> GetUnfinishedTransactions(int limit);
     }
 }

@@ -9,7 +9,7 @@ namespace ExactlyOnce.NServiceBus
         Task Delete(string messageId);
         Task<bool> CheckExists(string messageId);
         
-        Task Create(Message[] messages);
+        Task Create(string sourceId, Message[] messages);
         Task EnsureDeleted(string[] messageIds);
     }
 }

@@ -7,12 +7,14 @@
 
   <ItemGroup>
     <PackageReference Include="NServiceBus.Extensions.Hosting" Version="1.*" />
-    <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.8.0" />
+    <PackageReference Include="NServiceBus.RabbitMQ" Version="6.*" />
+    <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.24.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\ExactlyOnce.NServiceBus.Blob\ExactlyOnce.NServiceBus.Blob.csproj" />
     <ProjectReference Include="..\..\ExactlyOnce.NServiceBus.Cosmos\ExactlyOnce.NServiceBus.Cosmos.csproj" />
+    <ProjectReference Include="..\..\ExactlyOnce.NServiceBus.Testing\ExactlyOnce.NServiceBus.Testing.csproj" />
     <ProjectReference Include="..\..\ExactlyOnce.NServiceBus\ExactlyOnce.NServiceBus.csproj" />
     <ProjectReference Include="..\Contracts\Contracts.csproj" />
     <ProjectReference Include="..\Orders.DomainModel\Orders.DomainModel.csproj" />

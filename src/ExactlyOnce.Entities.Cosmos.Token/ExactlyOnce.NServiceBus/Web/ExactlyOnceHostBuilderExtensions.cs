@@ -13,11 +13,12 @@ namespace ExactlyOnce.NServiceBus
     {
         public static IHostBuilder UseAtomicCommitMessageSession<T>(this IHostBuilder hostBuilder, 
             IApplicationStateStore<T> applicationStateContainer,
-            ITransactionInProgressStore transactionInProgressStore,
+            ITransactionInProgressStore<T> transactionInProgressStore,
             IMessageStore messageStore)
         {
             hostBuilder.ConfigureServices((ctx, serviceCollection) =>
             {
+                serviceCollection.AddHostedService<HumanInterfaceConnectorService<T>>();
                 serviceCollection.AddSingleton<IHumanInterfaceConnector<T>>(serviceProvider =>
                 {
                     var dispatcher = serviceProvider.GetService<IDispatchMessages>();

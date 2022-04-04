@@ -9,30 +9,43 @@ using NServiceBus.Transport;
 
 namespace ExactlyOnce.NServiceBus.Web.HumanInterface
 {
+    using System.Threading;
+
     class HumanInterfaceConnector<TPartition> : IHumanInterfaceConnector<TPartition>
     {
+        const int TransactionInProgressQueryLimit = 10;
+        static readonly TimeSpan TransactionInProgressQueryInterval = TimeSpan.FromSeconds(5);
+
         readonly IApplicationStateStore<TPartition> applicationStateStore;
         readonly IMessageSession rootMessageSession;
         readonly ExactlyOnceProcessor<object> processor;
-        readonly ITransactionInProgressStore transactionInProgressStore;
+        readonly ITransactionInProgressStore<TPartition> transactionInProgressStore;
         readonly IMessageStore messageStore;
+        readonly int transactionInProgressQueryLimit;
+        readonly TimeSpan transactionInProgressQueryInterval;
+        CancellationTokenSource tokenSource;
+        Task completeTask;
 
         public HumanInterfaceConnector(IApplicationStateStore<TPartition> applicationStateStore, 
             IEnumerable<ISideEffectsHandler> sideEffectsHandlers, 
             IMessageSession rootMessageSession, 
             IDispatchMessages dispatcher, 
-            ITransactionInProgressStore transactionInProgressStore, 
-            IMessageStore messageStore)
+            ITransactionInProgressStore<TPartition> transactionInProgressStore, 
+            IMessageStore messageStore,
+            int? transactionInProgressQueryLimit = null,
+            TimeSpan? transactionInProgressQueryInterval = null)
         {
             this.applicationStateStore = applicationStateStore;
             this.rootMessageSession = rootMessageSession;
             this.transactionInProgressStore = transactionInProgressStore;
             this.messageStore = messageStore;
+            this.transactionInProgressQueryLimit = transactionInProgressQueryLimit ?? TransactionInProgressQueryLimit;
+            this.transactionInProgressQueryInterval = transactionInProgressQueryInterval ?? TransactionInProgressQueryInterval;
 
             var allHandlers = sideEffectsHandlers.Concat(new ISideEffectsHandler[]
             {
                 new WebMessagingWithClaimCheckSideEffectsHandler(messageStore, dispatcher),
-                new TransactionInProgressSideEffectHandler(transactionInProgressStore),
+                new TransactionInProgressSideEffectHandler<TPartition>(transactionInProgressStore),
             });
 
             processor = new ExactlyOnceProcessor<object>(allHandlers.ToArray(), new NServiceBusDebugLogger());
@@ -40,6 +53,9 @@ namespace ExactlyOnce.NServiceBus.Web.HumanInterface
 
         public Task Start()
         {
+            tokenSource = new CancellationTokenSource();
+            completeTask = Task.Run(() => CompleteTransactions(tokenSource.Token));
+
             return Task.CompletedTask;
         }
 
@@ -58,9 +74,45 @@ namespace ExactlyOnce.NServiceBus.Web.HumanInterface
             return outcome.Value; //Duplicate check is ignored in the human interface
         }
 
-        public Task Stop()
+        async Task CompleteTransactions(CancellationToken cancellationToken)
         {
-            return Task.CompletedTask;
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                var transactionsFound = false;
+                var unfinishedTransactions = await transactionInProgressStore.GetUnfinishedTransactions(transactionInProgressQueryLimit);
+                foreach (var transaction in unfinishedTransactions)
+                {
+                    transactionsFound = true;
+                    var transactionRecordContainer = applicationStateStore.Create(transaction.PartitionKey);
+                    await processor.FinishProcessing(transaction.TransactionId, transactionRecordContainer).ConfigureAwait(false);
+                }
+
+                if (!transactionsFound)
+                {
+                    try
+                    {
+                        await Task.Delay(transactionInProgressQueryInterval, cancellationToken);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        //Ignore
+                    }
+                }
+            }
+        }
+
+        public async Task Stop()
+        {
+            if (tokenSource != null)
+            {
+                tokenSource.Cancel();
+                tokenSource.Dispose();
+
+                if (completeTask != null)
+                {
+                    await completeTask.ConfigureAwait(false);
+                }
+            }
         }
 
     }
