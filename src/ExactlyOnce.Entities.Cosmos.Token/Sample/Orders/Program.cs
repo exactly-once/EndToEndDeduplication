@@ -11,6 +11,11 @@ using NServiceBus;
 
 namespace Orders
 {
+    using System;
+    using Microsoft.AspNetCore.Http;
+    using Microsoft.Extensions.DependencyInjection.Extensions;
+    using PaymentProvider.Frontend;
+
     public class Program
     {
         public static void Main(string[] args)
@@ -24,14 +29,18 @@ namespace Orders
             var clientOptions = new CosmosClientOptions();
             var client = new CosmosClient("AccountEndpoint=https://localhost:8081/;AccountKey=C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==", clientOptions);
             var appDataContainer = client.GetContainer("ExactlyOnce.Sample", "orders");
-            var transactionInProgressContainer = client.GetContainer("ExactlyOnce.Sample", "transactions");
 
             var stateStore = new ApplicationStateStore(appDataContainer, "Customer");
 
             return Host.CreateDefaultBuilder(args)
                 .ConfigureWebHostDefaults(webBuilder => { webBuilder.UseStartup<Startup>(); })
-                .ConfigureServices(collection => collection.AddSingleton(appDataContainer))
-                .UseNServiceBus(context =>
+                .ConfigureServices(collection =>
+                {
+                    collection.AddSingleton(appDataContainer);
+                    collection.TryAddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+                    collection.AddSingleton<IHumanInterfaceConnectorMessageSession, ContextHumanInterfaceConnectorMessageSession>();
+                })
+                .UseNServiceBusAtomicWithSession(context =>
                 {
                     var endpointConfiguration = new EndpointConfiguration("Samples.ExactlyOnce.Orders");
                     endpointConfiguration.EnableInstallers();
@@ -40,11 +49,8 @@ namespace Orders
                     transport.UseConventionalRoutingTopology();
                     var routing = transport.Routing();
                     routing.RouteToEndpoint(typeof(BillCustomer), "Samples.ExactlyOnce.Billing");
-                    endpointConfiguration.SendOnly();
                     return endpointConfiguration;
-                })
-                .UseAtomicCommitMessageSession(stateStore, 
-                    new TransactionInProgressStore(transactionInProgressContainer), messageStore);
+                }, stateStore, messageStore);
         }
     }
 }

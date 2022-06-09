@@ -9,23 +9,44 @@ using NServiceBus.Transport;
 // ReSharper disable once CheckNamespace
 namespace ExactlyOnce.NServiceBus
 {
+    using System;
+    using global::NServiceBus.Settings;
+
     public static class ExactlyOnceHostBuilderExtensions
     {
-        public static IHostBuilder UseAtomicCommitMessageSession<T>(this IHostBuilder hostBuilder, 
+        public static IHostBuilder UseNServiceBusAtomicWithSession<T>(this IHostBuilder hostBuilder,
+            Func<HostBuilderContext, EndpointConfiguration> endpointConfigurationBuilder,
             IApplicationStateStore<T> applicationStateContainer,
-            ITransactionInProgressStore<T> transactionInProgressStore,
             IMessageStore messageStore)
         {
+            hostBuilder.UseNServiceBus(context =>
+            {
+                var config = endpointConfigurationBuilder(context);
+
+                config.Pipeline.Register(b =>
+                    {
+                        var settings = b.Build<ReadOnlySettings>();
+                        return new HumanInterfaceMessageSideEffectsBehavior<T>(applicationStateContainer,
+                            Array.Empty<ISideEffectsHandler>(), //TODO: Add as parameter
+                            b.Build<IDispatchMessages>(), messageStore, settings.LocalAddress(), 
+                            6, //TODO: Add as parameter
+                            TimeSpan.FromSeconds(10)); //TODO: Add as parameter
+                    }, 
+                    "Completes the human interface transactions.");
+
+                return config;
+            });
+
             hostBuilder.ConfigureServices((ctx, serviceCollection) =>
             {
-                serviceCollection.AddHostedService<HumanInterfaceConnectorService<T>>();
                 serviceCollection.AddSingleton<IHumanInterfaceConnector<T>>(serviceProvider =>
                 {
                     var dispatcher = serviceProvider.GetService<IDispatchMessages>();
                     var rootMessageSession = serviceProvider.GetService<IMessageSession>();
+                    var localAddressHolder = serviceProvider.GetService<LocalAddressHolder>();
 
-                    var connector = new HumanInterfaceConnector<T>(applicationStateContainer, new ISideEffectsHandler[0], 
-                        rootMessageSession, dispatcher, transactionInProgressStore, messageStore);
+                    var connector = new HumanInterfaceConnector<T>(applicationStateContainer,  
+                        rootMessageSession, dispatcher, localAddressHolder.LocalAddress, messageStore, TimeSpan.FromSeconds(0));
                     return connector;
                 });
             });
@@ -34,12 +55,15 @@ namespace ExactlyOnce.NServiceBus
             return hostBuilder;
         }
 
-        public static IHostBuilder UseExactlyOnceWebMachineInterface<T>(this IHostBuilder hostBuilder,
+        public static IHostBuilder UseNServiceBusWithExactlyOnceWebMachineInterface<T>(this IHostBuilder hostBuilder,
+            Func<HostBuilderContext, EndpointConfiguration> endpointConfigurationBuilder,
             IApplicationStateStore<T> applicationStateContainer,
             IMachineWebInterfaceRequestStore requestStore,
             IMachineWebInterfaceResponseStore responseStore,
             IMessageStore messageStore)
         {
+            hostBuilder.UseNServiceBus(endpointConfigurationBuilder);
+
             hostBuilder.ConfigureServices((ctx, serviceCollection) =>
             {
                 serviceCollection.AddSingleton<IMachineInterfaceConnector<T>>(serviceProvider =>
@@ -49,7 +73,7 @@ namespace ExactlyOnce.NServiceBus
                     
                     var connector = new MachineInterfaceConnector<T>(
                         applicationStateContainer, 
-                        new ISideEffectsHandler[0], 
+                        Array.Empty<ISideEffectsHandler>(), //TODO: Add as parameter
                         rootMessageSession, 
                         dispatcher, 
                         messageStore, 

@@ -49,58 +49,23 @@ namespace PaymentProvider.Frontend
                     collection.TryAddSingleton<IHttpContextAccessor, HttpContextAccessor>();
                     collection.AddSingleton<IMachineInterfaceConnectorMessageSession<AuthorizeRequest>, ContextMachineInterfaceConnectorMessageSession<AuthorizeRequest>>();
                 })
-                .UseNServiceBus(context =>
-                {
-                    var endpointConfiguration = new EndpointConfiguration("Samples.ExactlyOnce.PaymentProvider.Frontend");
-                    endpointConfiguration.SendOnly();
-                    endpointConfiguration.EnableInstallers();
-                    var transport = endpointConfiguration.UseTransport<RabbitMQTransport>();
-                    transport.ConnectionString("host=localhost");
-                    transport.UseConventionalRoutingTopology();
-                    var routing = transport.Routing();
-                    routing.RouteToEndpoint(typeof(SettleTransaction), "Samples.ExactlyOnce.PaymentProvider.Backend");
-                    return endpointConfiguration;
-                })
                 .ConfigureWebHostDefaults(webBuilder => { webBuilder.UseStartup<Startup>(); })
-                .UseExactlyOnceWebMachineInterface(stateStore,
+                .UseNServiceBusWithExactlyOnceWebMachineInterface(context =>
+                    {
+                        var endpointConfiguration = new EndpointConfiguration("Samples.ExactlyOnce.PaymentProvider.Frontend");
+                        endpointConfiguration.SendOnly();
+                        endpointConfiguration.EnableInstallers();
+                        var transport = endpointConfiguration.UseTransport<RabbitMQTransport>();
+                        transport.ConnectionString("host=localhost");
+                        transport.UseConventionalRoutingTopology();
+                        var routing = transport.Routing();
+                        routing.RouteToEndpoint(typeof(SettleTransaction), "Samples.ExactlyOnce.PaymentProvider.Backend");
+                        return endpointConfiguration;
+                    },
+                    stateStore,
                     new MachineWebInterfaceRequestStore(requestResponseStoreClient, "request-"),
                     new MachineWebInterfaceResponseStore(requestResponseStoreClient, "response-"), messageStore);
         }
     }
-
-    //public class MySetup : IConfigureOptions<MvcOptions>, IPostConfigureOptions<MvcOptions>
-    //{
-    //    public void Configure(MvcOptions options)
-    //    {
-    //        options.ModelBinderProviders.Add(new StoredRequestModelBinderProvider(options.InputFormatters);
-    //    }
-
-    //    public void PostConfigure(string name, MvcOptions options)
-    //    {
-    //        throw new System.NotImplementedException();
-    //    }
-    //}
-
-    //public class StoredRequestModelBinderProvider : IModelBinderProvider
-    //{
-    //    readonly FormatterCollection<IInputFormatter> formatters;
-
-    //    public StoredRequestModelBinderProvider(FormatterCollection<IInputFormatter> formatters)
-    //    {
-    //        this.formatters = formatters;
-    //    }
-
-    //    public IModelBinder GetBinder(ModelBinderProviderContext context)
-    //    {
-    //        return new BodyModelBinder(formatters, new D());
-    //    }
-    //}
-
-    //public class D : IHttpRequestStreamReaderFactory
-    //{
-    //    public TextReader CreateReader(Stream stream, Encoding encoding)
-    //    {
-    //        throw new System.NotImplementedException();
-    //    }
-    //}
+    
 }

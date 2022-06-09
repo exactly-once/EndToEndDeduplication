@@ -1,119 +1,80 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
-using ExactlyOnce.Core;
-using ExactlyOnce.NServiceBus.Web.MachineInterface;
-using NServiceBus;
-using NServiceBus.Transport;
+
 
 namespace ExactlyOnce.NServiceBus.Web.HumanInterface
 {
-    using System.Threading;
+    using Core;
+    using MachineInterface;
+    using NServiceBus;
+    using global::NServiceBus;
+    using global::NServiceBus.Transport;
 
     class HumanInterfaceConnector<TPartition> : IHumanInterfaceConnector<TPartition>
     {
-        const int TransactionInProgressQueryLimit = 10;
-        static readonly TimeSpan TransactionInProgressQueryInterval = TimeSpan.FromSeconds(5);
-
         readonly IApplicationStateStore<TPartition> applicationStateStore;
         readonly IMessageSession rootMessageSession;
+        readonly IDispatchMessages dispatcher;
+        readonly string localAddress;
         readonly ExactlyOnceProcessor<object> processor;
-        readonly ITransactionInProgressStore<TPartition> transactionInProgressStore;
         readonly IMessageStore messageStore;
-        readonly int transactionInProgressQueryLimit;
-        readonly TimeSpan transactionInProgressQueryInterval;
-        CancellationTokenSource tokenSource;
-        Task completeTask;
+        readonly TimeSpan delay;
 
-        public HumanInterfaceConnector(IApplicationStateStore<TPartition> applicationStateStore, 
-            IEnumerable<ISideEffectsHandler> sideEffectsHandlers, 
-            IMessageSession rootMessageSession, 
-            IDispatchMessages dispatcher, 
-            ITransactionInProgressStore<TPartition> transactionInProgressStore, 
+        public HumanInterfaceConnector(IApplicationStateStore<TPartition> applicationStateStore,
+            IMessageSession rootMessageSession,
+            IDispatchMessages dispatcher,
+            string localAddress,
             IMessageStore messageStore,
-            int? transactionInProgressQueryLimit = null,
-            TimeSpan? transactionInProgressQueryInterval = null)
+            TimeSpan delay)
         {
             this.applicationStateStore = applicationStateStore;
             this.rootMessageSession = rootMessageSession;
-            this.transactionInProgressStore = transactionInProgressStore;
+            this.dispatcher = dispatcher;
+            this.localAddress = localAddress;
             this.messageStore = messageStore;
-            this.transactionInProgressQueryLimit = transactionInProgressQueryLimit ?? TransactionInProgressQueryLimit;
-            this.transactionInProgressQueryInterval = transactionInProgressQueryInterval ?? TransactionInProgressQueryInterval;
+            this.delay = delay;
 
-            var allHandlers = sideEffectsHandlers.Concat(new ISideEffectsHandler[]
-            {
-                new WebMessagingWithClaimCheckSideEffectsHandler(messageStore, dispatcher),
-                new TransactionInProgressSideEffectHandler<TPartition>(transactionInProgressStore),
-            });
-
-            processor = new ExactlyOnceProcessor<object>(allHandlers.ToArray(), new NServiceBusDebugLogger());
+            processor = new ExactlyOnceProcessor<object>(Array.Empty<ISideEffectsHandler>(), new NServiceBusDebugLogger());
         }
 
-        public Task Start()
-        {
-            tokenSource = new CancellationTokenSource();
-            completeTask = Task.Run(() => CompleteTransactions(tokenSource.Token));
 
-            return Task.CompletedTask;
-        }
-
-        public async Task<TResult> ExecuteTransaction<TResult>(string requestId, TPartition partitionKey, Func<IHumanInterfaceConnectorMessageSession, Task<TResult>> transaction) 
+        public async Task<T> ExecuteTransaction<T>(TPartition partitionKey, Func<IHumanInterfaceConnectorMessageSession, Task<T>> transaction)
         {
             var transactionRecordContainer = applicationStateStore.Create(partitionKey);
+            var attemptId = Guid.NewGuid();
+            var transactionId = attemptId.ToString();
 
-            var outcome = await processor.Process(requestId, transactionRecordContainer, null, async (ctx, transactionContext) =>
+            //Attempt id and Incoming ID are the same as there is always going to be a single attempt per transaction.
+            await transactionRecordContainer.Load().ConfigureAwait(false);
+            await transactionRecordContainer.AddSideEffect(new CompleteTransactionMessageRecord
             {
-                var session = new HumanInterfaceConnectorMessageSession(requestId, transactionContext, rootMessageSession, messageStore);
-                var result =  await transaction(session).ConfigureAwait(false);
-                await transactionInProgressStore.BeginTransaction(requestId, transactionRecordContainer.UniqueIdentifier).ConfigureAwait(false);
-                return ProcessingResult<TResult>.Successful(result);
+                AttemptId = attemptId,
+                IncomingId = transactionId
+            }).ConfigureAwait(false);
+
+            await messageStore.Create(transactionId, new[]
+            {
+                new Message(transactionId, Array.Empty<byte>())
+            }).ConfigureAwait(false);
+
+            //When Process succeeds it is guaranteed that the complete message is in the queue and the token for processing it is not deleted
+            //The token can only be deleted if the Behavior successfully executed process
+            var r = await processor.ProcessWithoutApplyingSideEffects(transactionId, transactionRecordContainer, null, async (ctx, transactionContext) =>
+            {
+                if (!await messageStore.CheckExists(transactionId))
+                {
+                    throw new Exception("Transaction timed out.");
+                }
+
+                var session = new HumanInterfaceConnectorMessageSession(transactionId, transactionContext, rootMessageSession, messageStore);
+
+                var result = await transaction(session).ConfigureAwait(false);
+
+                await HumanInterfaceCompleteMessageHandler.Enqueue(transactionId, partitionKey, 1, delay, localAddress, dispatcher).ConfigureAwait(false);
+
+                return ProcessingResult<T>.Successful(result);
             });
-
-            return outcome.Value; //Duplicate check is ignored in the human interface
+            return r.Value;
         }
-
-        async Task CompleteTransactions(CancellationToken cancellationToken)
-        {
-            while (!cancellationToken.IsCancellationRequested)
-            {
-                var transactionsFound = false;
-                var unfinishedTransactions = await transactionInProgressStore.GetUnfinishedTransactions(transactionInProgressQueryLimit);
-                foreach (var transaction in unfinishedTransactions)
-                {
-                    transactionsFound = true;
-                    var transactionRecordContainer = applicationStateStore.Create(transaction.PartitionKey);
-                    await processor.FinishProcessing(transaction.TransactionId, transactionRecordContainer).ConfigureAwait(false);
-                }
-
-                if (!transactionsFound)
-                {
-                    try
-                    {
-                        await Task.Delay(transactionInProgressQueryInterval, cancellationToken);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        //Ignore
-                    }
-                }
-            }
-        }
-
-        public async Task Stop()
-        {
-            if (tokenSource != null)
-            {
-                tokenSource.Cancel();
-                tokenSource.Dispose();
-
-                if (completeTask != null)
-                {
-                    await completeTask.ConfigureAwait(false);
-                }
-            }
-        }
-
     }
 }

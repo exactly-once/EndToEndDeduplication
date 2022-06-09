@@ -66,16 +66,45 @@ namespace ExactlyOnce.Core
             return result;
         }
 
-        public async Task<bool> FinishProcessing(string transactionId, ITransactionRecordContainer transaction)
+        public async Task<ProcessingResult<TResult>> ProcessWithoutApplyingSideEffects<TResult>(string currentMessageId, ITransactionRecordContainer transaction, TContext context,
+            Func<TContext, ITransactionContext, Task<ProcessingResult<TResult>>> invokeMessageHandlers)
+        {
+            var previousTransactionId = transaction.MessageId;
+            if (previousTransactionId != null)
+            {
+                //We have to throw here because otherwise we would have to apply the side effects of the previous transaction.
+                throw new Exception("Another transaction in progress: " + previousTransactionId);
+            }
+
+            var attemptId = Guid.NewGuid();
+            log.Log($"Beginning attempt {attemptId} to process message {currentMessageId}.");
+
+            await transaction.BeginStateTransition().ConfigureAwait(false);
+
+            var result = await invokeMessageHandlers(context, new TransactionContext(attemptId, transaction)).ConfigureAwait(false);
+            if (result.IsDuplicate)
+            {
+                log.Log($"Duplicate message {currentMessageId} detected. Ignoring.");
+                return result;
+            }
+            log.Log($"Committing transaction for attempt {attemptId} message {currentMessageId}.");
+
+            await transaction.CommitStateTransition(currentMessageId, attemptId).ConfigureAwait(false);
+
+            return result;
+        }
+
+        public async Task<bool> TryApplySideEffects(string currentMessageId, ITransactionRecordContainer transaction)
         {
             await transaction.Load().ConfigureAwait(false);
-            if (transaction.MessageId != transactionId)
+
+            var previousTransactionId = transaction.MessageId;
+            if (previousTransactionId == null || previousTransactionId != currentMessageId)
             {
                 return false;
             }
             await FinishProcessing(transaction).ConfigureAwait(false);
             return true;
-
         }
 
         async Task FinishProcessing(ITransactionRecordContainer transaction)

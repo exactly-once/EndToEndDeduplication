@@ -1,5 +1,4 @@
-﻿using System;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Contracts;
@@ -13,17 +12,19 @@ using Orders.Models;
 
 namespace Orders.Controllers
 {
+    using PaymentProvider.Frontend;
+
     public class OrderController : Controller
     {
         readonly ILogger<OrderController> logger;
         readonly Container ordersContainer;
-        readonly IHumanInterfaceConnector<string> connector;
+        readonly IHumanInterfaceConnectorMessageSession session;
 
-        public OrderController(ILogger<OrderController> logger, Container ordersContainer, IHumanInterfaceConnector<string> connector)
+        public OrderController(ILogger<OrderController> logger, Container ordersContainer, IHumanInterfaceConnectorMessageSession session)
         {
             this.logger = logger;
             this.ordersContainer = ordersContainer;
-            this.connector = connector;
+            this.session = session;
         }
 
         [Route("order/{customerId}/{orderId}")]
@@ -55,40 +56,70 @@ namespace Orders.Controllers
             return RedirectToAction("Index", new { customerId, orderId });
         }
 
+        //[Route("order/submit/{customerId}/{orderId}")]
+        //[HttpPost]
+        //public async Task<IActionResult> Submit(string customerId, string orderId)
+        //{
+        //    return await session.ExecuteTransaction<IActionResult>(customerId, async session =>
+        //    {
+        //        var orderResponse = await session.TransactionContext.Batch().ReadItemAsync<Order>(orderId);
+        //        var order = orderResponse.Resource;
+
+        //        if (order.State != OrderState.Created)
+        //        {
+        //            ModelState.AddModelError("State", "Cannot submit an order that is not in the Created state");
+        //            return View("Index", order);
+        //        }
+
+        //        order.State = OrderState.Submitted;
+
+        //        session.TransactionContext.Batch().ReplaceItem(orderId, order);
+        //        await session.Send(new BillCustomer
+        //        {
+        //            OrderId = orderId,
+        //            CustomerId = customerId,
+        //            Items = order.Items.Select(x => new OrderItem
+        //            {
+        //                Product = x.Product,
+        //                Count = x.Count,
+        //                Value = x.Value
+        //            }).ToList()
+        //        });
+
+        //        return RedirectToAction("Index", "Order", new { customerId, orderId });
+        //    });
+        //}
+
+        [HumanInterface(PartitionKey = "customerId")]
         [Route("order/submit/{customerId}/{orderId}")]
         [HttpPost]
         public async Task<IActionResult> Submit(string customerId, string orderId)
         {
-            var requestId = Guid.NewGuid().ToString(); //TODO
-            var result = await connector.ExecuteTransaction<IActionResult>(requestId, customerId, async session =>
+            var orderResponse = await session.TransactionContext.Batch().ReadItemAsync<Order>(orderId);
+            var order = orderResponse.Resource;
+
+            if (order.State != OrderState.Created)
             {
-                var orderResponse = await session.TransactionContext.Batch().ReadItemAsync<Order>(orderId);
-                var order = orderResponse.Resource;
+                ModelState.AddModelError("State", "Cannot submit an order that is not in the Created state");
+                return View("Index", order);
+            }
 
-                if (order.State != OrderState.Created)
+            order.State = OrderState.Submitted;
+
+            session.TransactionContext.Batch().ReplaceItem(orderId, order);
+            await session.Send(new BillCustomer
+            {
+                OrderId = orderId,
+                CustomerId = customerId,
+                Items = order.Items.Select(x => new OrderItem
                 {
-                    ModelState.AddModelError("State", "Cannot submit an order that is not in the Created state");
-                    return View("Index", order);
-                }
-
-                order.State = OrderState.Submitted;
-
-                session.TransactionContext.Batch().ReplaceItem(orderId, order);
-                await session.Send(new BillCustomer
-                {
-                    OrderId = orderId,
-                    CustomerId = customerId,
-                    Items = order.Items.Select(x => new OrderItem
-                    {
-                        Product = x.Product,
-                        Count = x.Count,
-                        Value = x.Value
-                    }).ToList()
-                });
-
-                return RedirectToAction("Index", "Order", new { customerId, orderId });
+                    Product = x.Product,
+                    Count = x.Count,
+                    Value = x.Value
+                }).ToList()
             });
-            return result;
+
+            return RedirectToAction("Index", "Order", new { customerId, orderId });
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
