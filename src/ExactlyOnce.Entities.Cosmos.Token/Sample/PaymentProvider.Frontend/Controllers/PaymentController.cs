@@ -22,7 +22,7 @@ namespace PaymentProvider.Frontend.Controllers
         [MachineInterface("payment/authorize/{transactionId}")]
         public async Task<IActionResult> Authorize(string transactionId)
         {
-            var account = await session.TransactionContext.Batch()
+            var account = await session.TransactionBatch()
                 .TryReadItemAsync<Account>(session.Payload.CustomerId).ConfigureAwait(false)
                 ?? new Account
                 {
@@ -34,7 +34,7 @@ namespace PaymentProvider.Frontend.Controllers
 
             account.Balance -= session.Payload.Amount;
 
-            session.TransactionContext.Batch().UpsertItem(account);
+            session.TransactionBatch().UpsertItem(account);
 
             await session.Send(new SettleTransaction
             {

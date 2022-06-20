@@ -56,46 +56,12 @@ namespace Orders.Controllers
             return RedirectToAction("Index", new { customerId, orderId });
         }
 
-        //[Route("order/submit/{customerId}/{orderId}")]
-        //[HttpPost]
-        //public async Task<IActionResult> Submit(string customerId, string orderId)
-        //{
-        //    return await session.ExecuteTransaction<IActionResult>(customerId, async session =>
-        //    {
-        //        var orderResponse = await session.TransactionContext.Batch().ReadItemAsync<Order>(orderId);
-        //        var order = orderResponse.Resource;
-
-        //        if (order.State != OrderState.Created)
-        //        {
-        //            ModelState.AddModelError("State", "Cannot submit an order that is not in the Created state");
-        //            return View("Index", order);
-        //        }
-
-        //        order.State = OrderState.Submitted;
-
-        //        session.TransactionContext.Batch().ReplaceItem(orderId, order);
-        //        await session.Send(new BillCustomer
-        //        {
-        //            OrderId = orderId,
-        //            CustomerId = customerId,
-        //            Items = order.Items.Select(x => new OrderItem
-        //            {
-        //                Product = x.Product,
-        //                Count = x.Count,
-        //                Value = x.Value
-        //            }).ToList()
-        //        });
-
-        //        return RedirectToAction("Index", "Order", new { customerId, orderId });
-        //    });
-        //}
-
         [HumanInterface(PartitionKey = "customerId")]
         [Route("order/submit/{customerId}/{orderId}")]
         [HttpPost]
         public async Task<IActionResult> Submit(string customerId, string orderId)
         {
-            var orderResponse = await session.TransactionContext.Batch().ReadItemAsync<Order>(orderId);
+            var orderResponse = await session.TransactionBatch().ReadItemAsync<Order>(orderId);
             var order = orderResponse.Resource;
 
             if (order.State != OrderState.Created)
@@ -106,7 +72,7 @@ namespace Orders.Controllers
 
             order.State = OrderState.Submitted;
 
-            session.TransactionContext.Batch().ReplaceItem(orderId, order);
+            session.TransactionBatch().ReplaceItem(orderId, order);
             await session.Send(new BillCustomer
             {
                 OrderId = orderId,

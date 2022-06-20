@@ -14,10 +14,10 @@ namespace Orders.Backend
         {
             log.Info($"Marking order {message.OrderId} for customer {message.CustomerId} as failed billing.");
 
-            Order order = await context.TransactionContext().Batch().ReadItemAsync<Order>(message.OrderId);
+            Order order = await context.TransactionBatch().ReadItemAsync<Order>(message.OrderId);
             order.State = OrderState.BillingFailed;
 
-            context.TransactionContext().Batch().UpsertItem(order);
+            context.TransactionBatch().UpsertItem(order);
         }
     }
 }

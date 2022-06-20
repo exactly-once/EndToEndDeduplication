@@ -13,5 +13,20 @@ namespace NServiceBus
             var recordContainer = (TransactionRecordContainer)transactionContext.TransactionRecordContainer.Unwrap();
             return recordContainer.BatchContext;
         }
+
+        public static ITransactionBatchContext TransactionBatch(this IHumanInterfaceConnectorMessageSession session)
+        {
+            return session.TransactionContext.Batch();
+        }
+
+        public static ITransactionBatchContext TransactionBatch<T>(this IMachineInterfaceConnectorMessageSession<T> session)
+        {
+            return session.TransactionContext.Batch();
+        }
+
+        public static ITransactionBatchContext TransactionBatch(this IMessageHandlerContext handlerContext)
+        {
+            return handlerContext.TransactionContext().Batch();
+        }
     }
 }

@@ -15,14 +15,14 @@ namespace PaymentProvider.Backend
         {
             log.Info($"Settling transaction {message.TransactionId}");
 
-            Account account = await context.TransactionContext().Batch().ReadItemAsync<Account>(message.AccountNumber);
+            Account account = await context.TransactionBatch().ReadItemAsync<Account>(message.AccountNumber);
             account.Transactions.Add(new Transaction
             {
                 Amount = message.Amount,
                 TransactionId = message.TransactionId
             });
 
-            context.TransactionContext().Batch().UpsertItem(account);
+            context.TransactionBatch().UpsertItem(account);
         }
     }
 }
