@@ -1,5 +1,6 @@
 ﻿using Azure.Storage.Blobs;
 using Contracts;
+using ExactlyOnce.NServiceBus;
 using ExactlyOnce.NServiceBus.Blob;
 using ExactlyOnce.NServiceBus.Cosmos;
 using Microsoft.Azure.Cosmos;
@@ -38,7 +39,7 @@ namespace Billing
                     routing.RouteToEndpoint(typeof(BillingFailed), "Samples.ExactlyOnce.Orders.Backend");
                     routing.RouteToEndpoint(typeof(ProcessAuthorizeResponse), "Samples.ExactlyOnce.Billing");
 
-                    var settings = endpointConfiguration.UseExactlyOnce(stateStore, messageStore);
+                    var settings = endpointConfiguration.UseTokenBasedDeduplication(stateStore, messageStore);
                     settings.MapMessage<BillCustomer>((message, headers) => message.CustomerId);
                     settings.MapMessage<ProcessAuthorizeResponse>((message, headers) => message.CustomerId);
 

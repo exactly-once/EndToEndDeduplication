@@ -40,6 +40,7 @@ namespace NServiceBus
 
             var sendOptions = new SendOptions();
             sendOptions.SetHeader("ExactlyOnce.HttpRequestUrl", url);
+            sendOptions.RouteToThisEndpoint();
             await context.Send(followUpMessage, sendOptions).ConfigureAwait(false);
         }
 

@@ -31,3 +31,4 @@ _ReSharper*/
 #Nuget packages folder
 packages/
 /src/ExactlyOnce.Entities.Cosmos.Token/.learningtransport
+/src/ExactlyOnce.Entities.Cosmos.Token/.attransport/

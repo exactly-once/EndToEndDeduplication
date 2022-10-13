@@ -1,4 +1,5 @@
 ﻿using Azure.Storage.Blobs;
+using ExactlyOnce.NServiceBus;
 using ExactlyOnce.NServiceBus.Blob;
 using ExactlyOnce.NServiceBus.Cosmos;
 using Microsoft.Azure.Cosmos;
@@ -34,7 +35,7 @@ namespace PaymentProvider.Backend
                     transport.UseConventionalRoutingTopology();
                     var routing = transport.Routing();
 
-                    var settings = endpointConfiguration.UseExactlyOnce(stateStore, messageStore);
+                    var settings = endpointConfiguration.UseTokenBasedDeduplication(stateStore, messageStore);
                     settings.MapMessage<SettleTransaction>((message, headers) => message.AccountNumber.Substring(0, 2));
 
                     return endpointConfiguration;

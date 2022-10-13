@@ -17,12 +17,7 @@ namespace NServiceBus
     public class ExactlyOnceEntitiesSettings<T> : ExactlyOnceEntitiesSettings
     {
         readonly CorrelationManager<T> correlationManager = new CorrelationManager<T>();
-        readonly IApplicationStateStore<T> applicationStateStore;
-
-        internal ExactlyOnceEntitiesSettings(IApplicationStateStore<T> applicationStateStore)
-        {
-            this.applicationStateStore = applicationStateStore;
-        }
+        internal IApplicationStateStore<T> ApplicationStateStore { get; set; }
 
         public ExactlyOnceEntitiesSettings<T> MapMessage<TMessage>(Func<TMessage, Dictionary<string, string>, T> correlationProperty)
         {
@@ -38,7 +33,7 @@ namespace NServiceBus
 
         internal override ICorrelatedApplicationStateStore GetCorrelatedApplicationStateStore()
         {
-            return new CorrelatedApplicationStateStore<T>(correlationManager, applicationStateStore);
+            return new CorrelatedApplicationStateStore<T>(correlationManager, ApplicationStateStore);
         }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using Azure.Storage.Blobs;
 using Contracts;
+using ExactlyOnce.NServiceBus;
 using ExactlyOnce.NServiceBus.Blob;
 using ExactlyOnce.NServiceBus.Cosmos;
 using Microsoft.Azure.Cosmos;
@@ -51,7 +52,7 @@ namespace Orders.Backend
                     transport.UseConventionalRoutingTopology();
                     var routing = transport.Routing();
 
-                    var settings = endpointConfiguration.UseExactlyOnce(chaosStateStore, chaosMessageStore);
+                    var settings = endpointConfiguration.UseTokenBasedDeduplication(chaosStateStore, chaosMessageStore);
                     settings.MapMessage<BillingSucceeded>((message, headers) => message.CustomerId);
                     settings.MapMessage<BillingFailed>((message, headers) => message.CustomerId);
 

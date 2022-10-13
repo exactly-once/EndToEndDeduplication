@@ -50,7 +50,7 @@ namespace PaymentProvider.Frontend
                     collection.AddSingleton<IMachineInterfaceConnectorMessageSession<AuthorizeRequest>, ContextMachineInterfaceConnectorMessageSession<AuthorizeRequest>>();
                 })
                 .ConfigureWebHostDefaults(webBuilder => { webBuilder.UseStartup<Startup>(); })
-                .UseNServiceBusWithExactlyOnceWebMachineInterface(context =>
+                .UseNServiceBusWithExactlyOnceAtomicSession(context =>
                     {
                         var endpointConfiguration = new EndpointConfiguration("Samples.ExactlyOnce.PaymentProvider.Frontend");
                         endpointConfiguration.SendOnly();

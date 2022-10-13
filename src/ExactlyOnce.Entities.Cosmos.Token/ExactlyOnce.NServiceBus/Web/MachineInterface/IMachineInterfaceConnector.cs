@@ -23,6 +23,12 @@ namespace ExactlyOnce.NServiceBus
             Func<IMachineInterfaceConnectorMessageSession<TPayload>, Task<StoredResponse>> transaction);
 
         /// <summary>
+        /// Returns an NServiceBus session that can be used to send/publish messages using provided connection/transaction.
+        /// </summary>
+        Task<StoredResponse> ExecuteTransaction(string requestId, T partitionKey,
+            Func<IMachineInterfaceConnectorMessageSession, Task<StoredResponse>> transaction);
+
+        /// <summary>
         /// Stores the PUT request body and created a deduplication token.
         /// </summary>
         Task StoreRequest(string requestId, Stream body);

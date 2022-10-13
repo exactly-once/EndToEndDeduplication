@@ -40,7 +40,7 @@ namespace Orders
                     collection.TryAddSingleton<IHttpContextAccessor, HttpContextAccessor>();
                     collection.AddSingleton<IHumanInterfaceConnectorMessageSession, ContextHumanInterfaceConnectorMessageSession>();
                 })
-                .UseNServiceBusAtomicWithSession(context =>
+                .UseNServiceBusWithAtomicSession(context =>
                 {
                     var endpointConfiguration = new EndpointConfiguration("Samples.ExactlyOnce.Orders");
                     endpointConfiguration.EnableInstallers();

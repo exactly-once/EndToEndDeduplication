@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.29709.97
+# Visual Studio Version 17
+VisualStudioVersion = 17.2.32630.192
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ExactlyOnce.NServiceBus", "ExactlyOnce.NServiceBus\ExactlyOnce.NServiceBus.csproj", "{B1A9EE57-F2E1-45A6-9AFD-5E6E2255F5A5}"
 EndProject
@@ -33,7 +33,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orders.DomainModel", "Sampl
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ExactlyOnce.NServiceBus.Testing", "ExactlyOnce.NServiceBus.Testing\ExactlyOnce.NServiceBus.Testing.csproj", "{313D2434-2EFF-42D7-AD39-72E9D092DBA0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{D0A657C3-7E1B-42E0-9508-9E1BEC87183A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tests", "Tests\Tests.csproj", "{D0A657C3-7E1B-42E0-9508-9E1BEC87183A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExactlyOnce.AcceptanceTests", "ExactlyOnce.AcceptanceTests\ExactlyOnce.AcceptanceTests.csproj", "{DC19153F-ADC8-4E1B-96D3-2F34F45C50EA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -101,6 +103,10 @@ Global
 		{D0A657C3-7E1B-42E0-9508-9E1BEC87183A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D0A657C3-7E1B-42E0-9508-9E1BEC87183A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D0A657C3-7E1B-42E0-9508-9E1BEC87183A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DC19153F-ADC8-4E1B-96D3-2F34F45C50EA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DC19153F-ADC8-4E1B-96D3-2F34F45C50EA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DC19153F-ADC8-4E1B-96D3-2F34F45C50EA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DC19153F-ADC8-4E1B-96D3-2F34F45C50EA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

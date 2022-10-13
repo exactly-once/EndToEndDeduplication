@@ -17,4 +17,17 @@ namespace ExactlyOnce.NServiceBus
         /// </summary>
         TRequest Payload { get; }
     }
+
+    public interface IMachineInterfaceConnectorMessageSession : IMessageSession
+    {
+        /// <summary>
+        /// Gets the transaction context
+        /// </summary>
+        ITransactionContext TransactionContext { get; }
+
+        /// <summary>
+        /// Gets the body of the PUT request
+        /// </summary>
+        Stream Payload { get; }
+    }
 }

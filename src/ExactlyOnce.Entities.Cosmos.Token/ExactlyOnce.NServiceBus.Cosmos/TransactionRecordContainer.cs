@@ -161,6 +161,10 @@ namespace ExactlyOnce.NServiceBus.Cosmos
                 IfMatchEtag = etag
             };
             var response = await container.ReplaceItemStreamAsync(ToStream(value), TransactionEntityId, partitionKey, options);
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new Exception($"Error while updating the state of the transaction: {response.StatusCode}.");
+            }
             value = FromStream(response.Content);
             etag = value.Etag;
         }

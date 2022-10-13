@@ -60,6 +60,26 @@ namespace ExactlyOnce.NServiceBus.Cosmos
             }
         }
 
+        public async Task<T> TryReadItemAsync<T>(string id, PartitionKey partitionKey, ItemRequestOptions requestOptions = null, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            try
+            {
+                var result = await Container.ReadItemAsync<T>(id, partitionKey, requestOptions, cancellationToken);
+                return result.Resource;
+            }
+            catch (CosmosException e)
+            {
+                if (e.StatusCode == HttpStatusCode.NotFound)
+                {
+                    return default;
+                }
+                else
+                {
+                    throw new Exception("Error while loading account data", e);
+                }
+            }
+        }
+
         public Container Container { get; }
     }
 }
