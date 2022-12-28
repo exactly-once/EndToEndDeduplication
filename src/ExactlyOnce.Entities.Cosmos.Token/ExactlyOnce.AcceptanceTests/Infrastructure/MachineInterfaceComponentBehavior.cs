@@ -14,6 +14,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using NServiceBus;
 using NServiceBus.AcceptanceTesting.Support;
+using NServiceBus.TransactionalSession.AcceptanceTests.Infrastructure;
 
 namespace ExactlyOnce.AcceptanceTests.Infrastructure;
 
@@ -27,8 +28,13 @@ public class MachineInterfaceComponentBehavior : EndpointBehavior
             var host = Host.CreateDefaultBuilder()
                 .ConfigureServices(collection =>
                 {
+                    if (endpointBuilder.ScenarioContext is IChaosCollectionHolder chaosHolder)
+                    {
+                        collection.AddSingleton(chaosHolder.ChaosMonkeys);
+                    }
+
                     collection.TryAddSingleton<IHttpContextAccessor, HttpContextAccessor>();
-                    collection.AddScoped<IMachineInterfaceConnectorMessageSession>(sp =>
+                    collection.AddScoped(sp =>
                     {
                         var contextAccessor = sp.GetRequiredService<IHttpContextAccessor>();
                         var context = contextAccessor.HttpContext;
@@ -79,9 +85,20 @@ public class MachineInterfaceComponentBehavior : EndpointBehavior
             app.UseRouting();
             app.Use(async (context, next) =>
             {
+                var chaosMonkeys = context.RequestServices.GetRequiredService<ChaosMonkeyCollection>();
+                if (string.Equals(context.Request.Method, "PUT", StringComparison.OrdinalIgnoreCase))
+                {
+                    chaosMonkeys.Put.Consult();
+                }
+                else if (string.Equals(context.Request.Method, "DELETE", StringComparison.OrdinalIgnoreCase))
+                {
+                    chaosMonkeys.Delete.Consult();
+                }
+
                 if (!string.Equals(context.Request.Method, "POST", StringComparison.OrdinalIgnoreCase))
                 {
                     context.Request.EnableBuffering();
+                    chaosMonkeys.Post.Consult();
                     await next();
                     return;
                 }

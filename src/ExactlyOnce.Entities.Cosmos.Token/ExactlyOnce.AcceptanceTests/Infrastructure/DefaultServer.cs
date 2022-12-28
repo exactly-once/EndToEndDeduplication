@@ -20,7 +20,7 @@ namespace NServiceBus.TransactionalSession.AcceptanceTests
 
             builder.Recoverability()
                 .Delayed(delayed => delayed.NumberOfRetries(0))
-                .Immediate(immediate => immediate.NumberOfRetries(0));
+                .Immediate(immediate => immediate.NumberOfRetries(1));
             builder.SendFailedMessagesTo("error");
 
             var storageDir = Path.Combine(Path.GetTempPath(), "learn", TestContext.CurrentContext.Test.ID);

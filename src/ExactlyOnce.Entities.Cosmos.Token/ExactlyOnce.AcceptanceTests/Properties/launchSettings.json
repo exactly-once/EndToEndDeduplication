@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "ExactlyOnce.AcceptanceTests": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:50917;http://localhost:50918"
+    }
+  }
+}

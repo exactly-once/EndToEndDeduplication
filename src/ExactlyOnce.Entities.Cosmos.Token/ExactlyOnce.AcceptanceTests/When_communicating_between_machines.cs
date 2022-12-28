@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Net;
 using ExactlyOnce.AcceptanceTests.Infrastructure;
 using ExactlyOnce.NServiceBus;
@@ -15,14 +16,45 @@ namespace NServiceBus.TransactionalSession.AcceptanceTests
     using NUnit.Framework;
     using ObjectBuilder;
 
+
+    /*
+     * Failure cases when processing a message
+     *  - Loading message body
+     *  - Loading transaction document
+     *  - Handler execution
+     *  - Checking token
+     *  - Commit state transition
+     *  - Apply side effects
+     *  - Clean transaction
+     *
+     */
+
+    /*
+     * Test scenarios:
+     *  - machine-to-machine: verify payload processed exactly once even if failures happen on the server
+     *  - machine-to-machine: verify payload delivered even if failures happen on the client
+     *  - machine-to-machine: verify response can be examined on the client
+     *  - human-to-machine: verify atomic-save-and-publish
+     *  - message: verify exactly once processing when failure occur in the failure cases documented above
+     */
+
+    //TODO next: Make sure the test verifies all the expected side effects of a machine-to-machine call
     public class When_communicating_between_machines : NServiceBusAcceptanceTest
     {
-        [Test]
-        public async Task Should_return_response()
+        private static IEnumerable<TestCaseData> GetCases()
+        {
+            yield return new TestCaseData(new ChaosMonkeyCollection());
+            yield return new TestCaseData(new ChaosMonkeyCollection(post: 1));
+            yield return new TestCaseData(new ChaosMonkeyCollection(put: 1));
+            yield return new TestCaseData(new ChaosMonkeyCollection(delete: 1));
+        }
+
+        [Test, TestCaseSource(nameof(GetCases))]
+        public async Task Should_return_response(ChaosMonkeyCollection chaosMonkeys)
         {
             var result = await Scenario.Define<Context>(c =>
                 {
-
+                    c.ChaosMonkeys = chaosMonkeys;
                 })
                 .WithEndpoint<Frontend>(s => s.When(ctx => ctx.EndpointsStarted, async (_, ctx) =>
                 {
@@ -57,7 +89,7 @@ namespace NServiceBus.TransactionalSession.AcceptanceTests
             Assert.IsTrue(result.FollowUpMessageReceived);
         }
 
-        class Context : ScenarioContext, IInjectBuilder
+        class Context : ScenarioContext, IInjectBuilder, IChaosCollectionHolder
         {
             public bool InitMessageReceived { get; set; }
             public bool FollowUpMessageReceived { get; set; }
@@ -72,6 +104,8 @@ namespace NServiceBus.TransactionalSession.AcceptanceTests
             public MyDocument FrontendDoc { get; set; }
             public MyDocument ClientDoc { get; set; }
             public MyDocument ServerDoc { get; set; }
+
+            public ChaosMonkeyCollection ChaosMonkeys { get; set; }
         }
 
         class Frontend : EndpointConfigurationBuilder
@@ -128,7 +162,7 @@ namespace NServiceBus.TransactionalSession.AcceptanceTests
                 {
                     var (response, status) = context.GetResponse<MyResponse>();
                     testContext.ResponseCode = status;
-                    testContext.ResponseText = response.Message;
+                    testContext.ResponseText = response?.Message;
                     testContext.FollowUpMessageReceived = true;
                 }
 
@@ -146,11 +180,13 @@ namespace NServiceBus.TransactionalSession.AcceptanceTests
             [ApiController]
             public class MyController : ControllerBase
             {
-                IMachineInterfaceConnectorMessageSession session;
+                readonly IMachineInterfaceConnectorMessageSession session;
+                readonly Context testContext;
 
-                public MyController(IMachineInterfaceConnectorMessageSession session)
+                public MyController(IMachineInterfaceConnectorMessageSession session, Context testContext)
                 {
                     this.session = session;
+                    this.testContext = testContext;
                 }
 
                 [Route("request/{transactionId}/{partitionKey}")]

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using ExactlyOnce.NServiceBus;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.Routing;
@@ -83,7 +82,7 @@ namespace ExactlyOnce.AcceptanceTests.Infrastructure
 
                                 var resultContext = await next().ConfigureAwait(false);
 
-                                if (resultContext.HttpContext.Response.StatusCode <= 300)
+                                if (resultContext.HttpContext.Response.StatusCode <= 300 && resultContext.Exception == null)
                                 {
                                     capturedResponse.Seek(0, SeekOrigin.Begin);
                                     //Store the successful response
